@@ -1,0 +1,79 @@
+/*--------------------- width ---------------------*/
+.w-full{
+  width: 100%;
+}
+.w-screen{
+  width: 100vw;
+}
+// 百分比 1/3 到 3/3  
+@each $numerator in 1, 2, 3 {
+  .w-#{$numerator}\/3 { width: calc(100% * #{$numerator} / 3); }
+}
+// 百分比 1/4 到 4/4
+@each $numerator in 1, 2, 3, 4 {
+  .w-#{$numerator}\/4 { width: calc(100% * #{$numerator} / 4); }
+}
+// 百分比 1/5 到 5/5
+@each $numerator in 1, 2, 3, 4, 5 {
+  .w-#{$numerator}\/5 { width: calc(100% * #{$numerator} / 5); }
+}
+// 百分比 1/6 到 6/6
+@each $numerator in 1, 2, 3, 4, 5, 6 {
+  .w-#{$numerator}\/6 { width: calc(100% * #{$numerator} / 6); }
+}
+
+/*--------------------- height ---------------------*/
+.h-full{
+  height: 100%;
+}
+.h-screen{
+  height: 100vh;
+}
+// 百分比 1/3 到 3/3  
+@each $numerator in 1, 2, 3 {
+  .h-#{$numerator}\/3 { height: calc(100% * #{$numerator} / 3); }
+}
+// 百分比 1/4 到 4/4
+@each $numerator in 1, 2, 3, 4 {
+  .h-#{$numerator}\/4 { height: calc(100% * #{$numerator} / 4); }
+}
+// 百分比 1/5 到 5/5
+@each $numerator in 1, 2, 3, 4, 5 {
+  .h-#{$numerator}\/5 { height: calc(100% * #{$numerator} / 5); }
+}
+// 百分比 1/6 到 6/6
+@each $numerator in 1, 2, 3, 4, 5, 6 {
+  .h-#{$numerator}\/6 { height: calc(100% * #{$numerator} / 6); }
+}
+
+/*--------------------- min-height ---------------------*/
+.min-h-full{
+  min-height: 100%;
+}
+.min-h-screen{
+  min-height: 100vh;
+}
+
+/*--------------------- max-height ---------------------*/  
+.max-h-full{
+  max-height: 100%;
+}
+.max-h-screen{
+  max-height: 100vh;
+}
+
+/*--------------------- min-width ---------------------*/
+.min-w-full{
+  min-width: 100%;
+}
+.min-w-screen{
+  min-width: 100vw;
+}
+
+/*--------------------- max-width ---------------------*/
+.max-w-full{
+  max-width: 100%;
+}
+.max-w-screen{
+  max-width: 100vw;
+}

@@ -1,0 +1,110 @@
+/*--------------------- font size ---------------------*/
+@each $size, $value in (
+  12: 12px,
+  14: 14px,
+  16: 16px,
+  18: 18px,
+  20: 20px,
+  24: 24px,
+  32: 32px,
+  36: 36px,
+) {
+  .fz-#{$size} { font-size: $value; }
+}
+
+/*--------------------- font weight ---------------------*/
+@each $weight, $value in (
+  100: 100,
+  200: 200,
+  300: 300,
+  400: 400,
+  500: 500,
+  600: 600,
+  700: 700,
+  800: 800,
+  900: 900
+) {
+  .fw-#{$weight} { font-weight: $value; }
+}
+
+/*--------------------- line-height ---------------------*/
+@each $size, $value in ( 
+  none: 1,
+  xs: 1.2,
+  sm: 1.4,
+  base: 1.5,
+  md: 1.6,
+  lg: 1.8,
+  xl: 2
+) {
+  .lh-#{$size} { line-height: $value; }
+}
+
+/*--------------------- letter spacing ---------------------*/
+@each $size, $value in (
+  none: 0,
+  sm: -0.025em,
+  md: 0.025em,
+  lg: 0.05em,
+  xl: 0.1em
+) {
+  .ls-#{$size} { letter-spacing: $value; }
+}
+
+/*--------------------- component ---------------------*/
+.text-h2{
+  font-family: $font-family;
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 2.5px;
+}
+.text-h4{
+  font-family: $font-family;
+  font-size: 32px;
+  font-weight: 600px;
+  line-height: 130%;
+  letter-spacing: 2.56px;
+}
+.text-h6{
+  font-family: $font-family;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 150%;
+  letter-spacing: 1.6px;
+}
+.text-title{
+  font-family: $font-family;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 140%;
+  letter-spacing: 0px;
+}
+.text-subtitle{
+  font-family: $font-family;
+  font-size: 18px;
+  font-weight: 600px;
+  line-height: 140%;
+  letter-spacing: 0px;
+}
+.text-body{
+  font-family: $font-family;
+  font-size: 16px;
+  font-weight: 400px;
+  line-height: 150%;
+  letter-spacing: 0.5px;
+}
+.text-body2{
+  font-family: $font-family;
+  font-size: 14px;
+  font-weight: 400px;
+  line-height: 160%;
+  letter-spacing: 0.2px;
+}
+.text-hint{
+  font-family: $font-family;
+  font-size: 12px;
+  font-weight: 400px;
+  line-height: 180%;
+  letter-spacing: 0.4px;
+}

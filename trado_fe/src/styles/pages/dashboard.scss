@@ -1,0 +1,382 @@
+.Dashboard {
+  min-height: 100%;
+  padding: 12px;
+
+  // ── 主佈局：3:9 左右排列 ────────────────────────
+  .dashboard-main-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .dashboard-col-left {
+    flex: 0 0 25%;
+    max-width: 25%;
+    position: sticky;
+    top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .dashboard-col-right {
+    flex: 1;
+    min-width: 0;
+  }
+
+  // ── 時段分析區 ────────────────────────────────────
+  .dashboard-period-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .dashboard-period-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px;
+  }
+
+  // ── 空資料提示 ────────────────────────────────────
+  .empty-hint {
+    text-align: center;
+    padding: 40px 0;
+    font-size: 14px;
+  }
+
+  // ── section card ──────────────────────────────────
+  &-section-card {
+    &.ant-card {
+      border-radius: 6px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+    .ant-card-head {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      min-height: 44px;
+      padding: 0 16px;
+    }
+  }
+
+  .card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  // ── ① 帳戶狀態 ──────────────────────────────────────
+  .account-status-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .account-status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .account-status-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .account-status-asset {
+    min-width: 0;
+  }
+
+  // ── 紀律追蹤 ─────────────────────────────────────
+  .discipline-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .discipline-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .discipline-rating-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .discipline-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .discipline-bar {
+    flex: 1;
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    gap: 2px;
+
+    .discipline-bar-pass,
+    .discipline-bar-fail {
+      border-radius: 3px;
+    }
+  }
+
+  .emotion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 2px;
+  }
+
+  .emotion-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .emotion-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .emotion-label {
+    flex: 1;
+    color: var(--text-secondary);
+  }
+
+  .emotion-count {
+    font-size: 12px;
+  }
+
+  .error-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 2px;
+  }
+
+  .error-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+
+  .error-label {
+    color: var(--text-secondary);
+  }
+
+  .error-count {
+    font-size: 12px;
+  }
+
+  .hero-value {
+    color: #1a1a1a;
+    line-height: 1.2;
+  }
+
+  .long-short-bar {
+    display: flex;
+    height: 5px;
+    border-radius: 3px;
+    overflow: hidden;
+    gap: 2px;
+    width: 56px;
+    .ls-long, .ls-short { border-radius: 3px; }
+  }
+
+  // ── ② 績效 vs 大盤 — 左右對比 ──────────────────────
+  .perf-vs-market {
+    display: flex;
+    gap: 0;
+  }
+
+  .perf-vs-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 16px;
+
+    .mc-label {
+      font-size: 12px;
+    }
+  }
+
+  .perf-vs-mine {
+    padding-left: 0;
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .perf-vs-market-col {
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .perf-vs-stats {
+    padding-right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .perf-vs-big {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .perf-vs-value {
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  .perf-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+  }
+
+  // ── ③④ 兩欄 ──────────────────────────────────────
+  .dashboard-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  // ── ③ 策略績效表格 ─────────────────────────────────
+  .strategy-summary-table {
+    font-size: 14px;
+  }
+
+  .strategy-table-header {
+    display: grid;
+    grid-template-columns: 1.5fr 1.2fr 0.8fr 0.8fr 0.6fr;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .strategy-table-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1.2fr 0.8fr 0.8fr 0.6fr;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    align-items: center;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  // ── ④ 大賺小賠統計 ──────────────────────────────
+  .pnl-summary {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pnl-summary-row {
+    display: flex;
+    gap: 16px;
+  }
+
+  .pnl-summary-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  // ── ⑤ 交易在大盤位置 legend ────────────────────────
+  .trade-on-market-legend {
+    display: flex;
+    gap: 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  // ── shared metric tokens ──────────────────────────
+  .mc-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+  }
+
+  .mc-value {
+    line-height: 1.2;
+    margin-top: 4px;
+  }
+
+  .mc-unit {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin-left: 2px;
+  }
+
+  .mc-extra {
+    font-size: 11px;
+    color: #bbb;
+    margin-top: 5px;
+    line-height: 1.5;
+  }
+
+  // ── ⑤ 交易習慣分析 ─────────────────────────
+  .trade-habit-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    > div + div {
+      padding-top: 16px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  .trend-chart-label {
+    font-size: 12px;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  // ── inner panel (通用) ──────────────────────
+  .inner-panel {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+}
+

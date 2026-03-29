@@ -1,0 +1,123 @@
+$spacing-xs: 2px;
+$spacing-sm: 4px;
+$spacing-base: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 40px;
+$spacing-xxl: 80px;
+
+
+/*--------------------- margin ---------------------*/
+@each $size, $value in (
+  none: 0,
+  xs: $spacing-xs,
+  sm: $spacing-sm,
+  base: $spacing-base,
+  md: $spacing-md,
+  lg: $spacing-lg,
+  xl: $spacing-xl,
+  2xl: $spacing-xxl
+) {
+  .m-#{$size} { margin: $value !important; }
+  .m-n#{$size} { margin: -$value !important; }
+}
+
+@each $size, $value in (
+  none: 0,
+  xs: $spacing-xs,
+  sm: $spacing-sm,
+  base: $spacing-base,
+  md: $spacing-md,
+  lg: $spacing-lg,
+  xl: $spacing-xl,
+  2xl: $spacing-xxl
+) {
+  .mt-#{$size} { margin-top: $value !important; }
+  .mr-#{$size} { margin-right: $value !important; }
+  .mb-#{$size} { margin-bottom: $value !important; }
+  .ml-#{$size} { margin-left: $value !important; }
+  .mt-n#{$size} { margin-top: -$value !important; }
+  .mr-n#{$size} { margin-right: -$value !important; }
+  .mb-n#{$size} { margin-bottom: -$value !important; }
+  .ml-n#{$size} { margin-left: -$value !important; }
+}
+
+@each $size, $value in (
+  none: 0,
+  xs: $spacing-xs,
+  sm: $spacing-sm,
+  base: $spacing-base,
+  md: $spacing-md,
+  lg: $spacing-lg,
+  xl: $spacing-xl,
+  2xl: $spacing-xxl
+) {
+  .mx-#{$size} {
+    margin-left: $value !important;
+    margin-right: $value !important;
+  }
+  .mx-n#{$size} {
+    margin-left: -$value !important;
+    margin-right: -$value !important;
+  }
+
+  .my-#{$size} {
+    margin-top: $value !important;
+    margin-bottom: $value !important;
+  }
+  .my-n#{$size} {
+    margin-top: -$value !important;
+    margin-bottom: -$value !important;
+  }
+}
+
+/*--------------------- padding ---------------------*/
+@each $size, $value in (
+  none: 0,
+  xs: $spacing-xs,
+  sm: $spacing-sm,
+  base: $spacing-base,
+  md: $spacing-md,
+  lg: $spacing-lg,
+  xl: $spacing-xl,
+  xxl: $spacing-xxl
+) {
+  .p-#{$size} { padding: $value !important; }
+}
+
+@each $size, $value in (
+  none: 0,
+  xs: $spacing-xs,
+  sm: $spacing-sm,
+  base: $spacing-base,
+  md: $spacing-md,
+  lg: $spacing-lg,
+  xl: $spacing-xl,
+  xxl: $spacing-xxl
+) {
+  .pt-#{$size} { padding-top: $value !important; }
+  .pr-#{$size} { padding-right: $value !important; }
+  .pb-#{$size} { padding-bottom: $value !important; }
+  .pl-#{$size} { padding-left: $value !important; }
+}
+
+@each $size, $value in (
+  none: 0,
+  xs: $spacing-xs,
+  sm: $spacing-sm,
+  base: $spacing-base,
+  md: $spacing-md,
+  lg: $spacing-lg,
+  xl: $spacing-xl,
+  2xl: $spacing-xxl
+) {
+  .px-#{$size} {
+    padding-left: $value !important;
+    padding-right: $value !important;
+  }
+
+  .py-#{$size} {
+    padding-top: $value !important;
+    padding-bottom: $value !important;
+  }
+}

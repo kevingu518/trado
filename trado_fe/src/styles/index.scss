@@ -1,0 +1,25 @@
+// 引入 antd 樣式
+@import 'antd/dist/reset.css';
+
+// @import './utils';
+@import './base';
+@import './utils-flex';
+@import './utils-color';
+@import './utils-effect';
+@import './utils-border';
+@import './utils-layout';
+@import './utils-sizing';
+@import './utils-spacing';
+@import './utils-typography';
+
+
+@import './layouts/mainLayout';
+@import './layouts/authLayout';
+
+@import './pages/trade';
+@import './pages/transaction';
+@import '../features/dashboard/styles/index';
+@import './pages/login';
+
+// 組件樣式
+@import '../components/ThemeSwitcher/index.scss';

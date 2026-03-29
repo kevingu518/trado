@@ -1,0 +1,150 @@
+/*--------------------- flex ---------------------*/
+.flex{
+  display: flex;
+}
+.flex-col{
+  display: flex;
+  flex-direction: column;
+}
+.flex-row{
+  display: flex;
+  flex-direction: row;
+}
+.flex-1{
+  flex: 1;
+}
+.flex-auto{
+  flex: 1 1 auto;
+}
+.flex-none{
+  flex: none;
+}
+.flex-grow{
+  flex-grow: 1;
+}
+.flex-grow-0{
+  flex-grow: 0;
+}
+.flex-shrink{
+  flex-shrink: 1;
+}
+.flex-shrink-0{
+  flex-shrink: 0;
+}
+.flex-wrap{
+  flex-wrap: wrap;
+}
+.flex-nowrap{
+  flex-wrap: nowrap;
+}
+
+/*--------------------- gap ---------------------*/
+@each $size, $value in (
+  none: 0,
+  xs: 2px,
+  sm: 4px,
+  md: 8px,
+  lg: 16px,
+  xl: 24px,
+) {
+  .gap-#{$size} { gap: $value; }
+}
+
+/*--------------------- box alignment ---------------------*/
+.justify-start{
+  justify-content: flex-start;
+}
+.justify-end{
+  justify-content: flex-end;
+}
+.justify-center{
+  justify-content: center;
+}
+.justify-between{
+  justify-content: space-between;
+}
+.justify-evenly{
+  justify-content: space-evenly;
+}
+.items-start{
+  align-items: flex-start;
+}
+.items-end{
+  align-items: flex-end;
+}
+.items-center{
+  align-items: center;
+}
+.items-stretch{
+  align-items: stretch;
+}
+.items-baseline{
+  align-items: baseline;
+}
+/*--------------------- self alignment ---------------------*/
+.self-start{
+  align-self: flex-start;
+}
+.self-end{
+  align-self: flex-end;
+}
+.self-center{
+  align-self: center;
+}
+.self-stretch{
+  align-self: stretch;
+}
+.self-baseline{
+  align-self: baseline;
+}
+
+/*--------------------- mixin ---------------------*/
+.useCenter{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.useBetween{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.useStart{
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+.useBaseline{
+  display: flex;
+  align-items: baseline;
+}
+.useEnd{
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.useBetweenStart{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.useBetweenEnd{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.useEvenlyStart{
+  display: flex;
+  justify-content: space-evenly;
+  align-items: flex-start;
+}
+.useEvenlyEnd{
+  display: flex;
+  justify-content: space-evenly;
+  align-items: flex-end;
+}
+.useAround{
+  display: flex;
+  justify-content:space-around;
+  align-items: center;
+}

@@ -1,0 +1,212 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ErrorCategory {
+  ENTRY_TIMING
+  EXIT_TIMING
+  POSITION_SIZE
+  EMOTION_CONTROL
+  STRATEGY_DEVIATION
+  RISK_MANAGEMENT
+  MARKET_ANALYSIS
+  OTHER
+}
+
+enum Emotion {
+  CALM
+  ANXIOUS
+  EXCITED
+  FEARFUL
+  GREEDY
+  CONFIDENT
+  DOUBTFUL
+  FRUSTRATED
+  IMPATIENT
+  NEUTRAL
+}
+
+enum StrategyCategory {
+  TREND_FOLLOWING    // 趨勢跟隨
+  CONTRARIAN         // 逆勢反轉
+  DAY_TRADING        // 當沖
+  DIVIDEND_INVESTING // 存股
+}
+
+model User {
+  id             String    @id @default(uuid()) @db.VarChar(36)
+  email          String    @unique @db.VarChar(255)
+  name           String?   @db.VarChar(255)
+  picture        String?   @db.Text
+  emailVerified  Boolean   @default(false)
+  googleId       String    @unique @db.VarChar(255)
+  accessToken    String?   @db.Text
+  refreshToken   String?   @db.Text
+  createdAt      DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamp(6)
+  trades         Trade[]
+  strategies     Strategy[]
+
+  @@index([googleId])
+  @@index([email])
+}
+
+model Trade {
+  id                  String               @id @default(uuid()) @db.VarChar(36)
+  userId              String               @db.VarChar(36)
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol              String               @db.VarChar(20)
+  assetType           String               @default("stock") @db.VarChar(20)
+  direction           String               @db.VarChar(10)
+  status              String               @db.VarChar(10)
+  
+  // [持倉統計]
+  totalShares         Int?
+  avgPrice            Decimal?             @db.Decimal(18, 2)
+  totalValue          Decimal?             @db.Decimal(18, 2)
+  positionNote        String?             @db.Text
+  entryCount          Int?                 // 建倉次數
+  holdingDuration     Decimal?             @db.Decimal(10, 1)  // 持有時間（天數，小數點後1位）
+  
+  // [盈虧分析]
+  grossProfitLoss     Int?                // 毛損益（原 profitLoss，保留向後相容）
+  profitLoss          Int?                // 保留舊欄位名稱以向後相容
+  profitLossRatio     Decimal?             @db.Decimal(5, 4)  // 盈虧佔比（例如 0.15 = 15%）
+  totalFee            Int?                // 總手續費
+  totalTax            Int?                // 總交易稅
+  netProfitLoss       Int?                // 淨損益
+  
+  // [檢討]
+  reviewNotes         String?             @db.Text
+  errorCategory       ErrorCategory?
+  emotion             Emotion?
+  followedDiscipline  String?             @default("pending") @db.VarChar(20)
+  selfRating         Int?                // 自我評分（1-10）
+  exitReason          String?             @db.VarChar(50)
+  
+  createdAt           DateTime             @default(now()) @db.Timestamp(6)
+  closedAt            DateTime?            @db.Timestamp(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamp(6)
+  positionAdjustments PositionAdjustment[]
+  strategies          TradeStrategy[]
+  strategyId          String?              @db.VarChar(36)
+  strategy            Strategy?            @relation(fields: [strategyId], references: [id], onDelete: SetNull)
+
+  @@index([userId, symbol, status])
+}
+
+model PositionAdjustment {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  tradeId   String   @db.VarChar(36)
+  trade     Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  action    String   @db.VarChar(10)
+  shares    Int
+  price     Decimal  @db.Decimal(18, 2)
+  fee       Int      @default(0)
+  stopLoss  Decimal? @db.Decimal(18, 2)
+  note      String?  @db.Text
+  timestamp DateTime @db.Timestamp(6)
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  deletedAt DateTime? @db.Timestamp(6)
+
+  @@index([tradeId, timestamp])
+}
+
+model Strategy {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  userId      String   @db.VarChar(36)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // [基本資訊]
+  name        String   @db.VarChar(100)  // 策略名稱（必填）
+  description String?  @db.Text          // 策略描述（選填）
+  category    StrategyCategory?          // 策略類型（選填）
+  note        String?  @db.Text          // 策略備註（選填）
+  
+  // [選股與條件]
+  stockSelectionCriteria String?  @db.Text  // 選股條件（選填）
+  entryConditions        String?  @db.Text  // 進場條件（選填）
+  exitConditions         String?  @db.Text  // 出場條件（選填）
+  
+  // [風險管理]
+  riskManagement        String?  @db.Text   // 風險控制規則（選填）
+  maxDrawdownTolerance  Decimal? @db.Decimal(5, 2)  // 最大容忍回撤（選填，百分比，例如 15.50 = 15.5%）
+  
+  // [績效預期]
+  expectedWinRate       Decimal? @db.Decimal(5, 2)  // 預期勝率（選填，百分比，例如 65.50 = 65.5%）
+  expectedProfitLossRatio Decimal? @db.Decimal(5, 2)  // 預期盈虧比（選填，例如 2.50 = 2.5:1）
+  
+  // [交易規則]
+  watchlistTrigger      String?  @db.Text   // 觀測清單觸發條件（選填）
+  addPositionRules      String?  @db.Text   // 加碼規則（選填）
+  
+  // [系統欄位]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @db.Timestamp(6)
+  trades      TradeStrategy[]
+  directTrades Trade[]
+  performance StrategyPerformance[]  // 績效快照
+
+  @@index([userId])
+  @@index([category])
+}
+
+model TradeStrategy {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  tradeId    String   @db.VarChar(36)
+  strategyId String   @db.VarChar(36)
+  trade      Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  strategy   Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
+
+  @@unique([tradeId, strategyId])
+  @@index([tradeId])
+  @@index([strategyId])
+}
+
+model StrategyPerformance {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  strategyId  String   @db.VarChar(36)
+  strategy    Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  
+  // [績效指標]
+  totalProfitLoss      Int?     // 總盈虧（元）
+  winRate              Decimal? @db.Decimal(5, 2)  // 勝率（百分比）
+  riskRewardRatio      Decimal? @db.Decimal(5, 2)  // 風險報酬比
+  avgHoldingDuration   Decimal? @db.Decimal(10, 1)  // 平均持倉時間（天數）
+  maxDrawdown          Decimal? @db.Decimal(5, 2)  // 最大回撤（百分比）
+  
+  // [統計資訊]
+  totalTrades          Int?     @default(0)  // 總交易數
+  winningTrades        Int?     @default(0)  // 獲利交易數
+  losingTrades         Int?     @default(0)  // 虧損交易數
+  
+  // [快照設定]
+  isCurrentSnapshot    Boolean  @default(false)  // 是否為當前使用的快照
+  snapshotDate         DateTime @db.Timestamp(6)  // 快照建立日期
+  periodStart          DateTime? @db.Timestamp(6)  // 統計期間開始（null = 全部歷史）
+  periodEnd            DateTime? @db.Timestamp(6)  // 統計期間結束（null = 全部歷史）
+  
+  // [資料來源]
+  sourceType           String   @default("auto") @db.VarChar(20)  // "auto" | "manual"
+  
+  // [系統欄位]
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @db.Timestamp(6)
+  
+  @@index([strategyId, isCurrentSnapshot])
+  @@index([strategyId, snapshotDate])
+  @@index([strategyId, periodStart])
+}

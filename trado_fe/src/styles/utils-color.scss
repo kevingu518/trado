@@ -1,0 +1,172 @@
+@import './variables';
+
+/*--------------------- background color ---------------------*/
+@each $color, $value in (
+  grey: (
+    100: $grey-100,
+    200: $grey-200,
+    300: $grey-300,
+    400: $grey-400,
+    500: $grey-500,
+    600: $grey-600,
+    700: $grey-700,
+    800: $grey-800,
+    900: $grey-900
+  ),
+  blue: (
+    100: $blue-100,
+    200: $blue-200,
+    300: $blue-300,
+    400: $blue-400,
+    500: $blue-500,
+    600: $blue-600,
+    700: $blue-700,
+    800: $blue-800,
+    900: $blue-900
+  ),
+  orange: (
+    100: $orange-100,
+    200: $orange-200,
+    300: $orange-300,
+    400: $orange-400,
+    500: $orange-500,
+    600: $orange-600,
+    700: $orange-700,
+    800: $orange-800,
+    900: $orange-900
+  ),
+  red: (
+    100: $red-100,
+    200: $red-200,
+    300: $red-300,
+    400: $red-400,
+    500: $red-500,
+    600: $red-600,
+    700: $red-700,
+    800: $red-800,
+    900: $red-900
+  ),
+  green: (
+    100: $green-100,
+    200: $green-200,
+    300: $green-300,
+    400: $green-400,
+    500: $green-500,
+    600: $green-600,
+    700: $green-700,
+    800: $green-800,
+    900: $green-900
+  ),
+  yellow: (
+    100: $yellow-100,
+    200: $yellow-200,
+    300: $yellow-300,
+    400: $yellow-400,
+    500: $yellow-500,
+    600: $yellow-600,
+    700: $yellow-700,
+    800: $yellow-800,
+    900: $yellow-900
+  )
+) {
+  @each $shade, $value in $value {
+    .bg-#{$color}-#{$shade} { background-color: $value; }
+  }
+}
+
+.bg-white{
+  background-color: #fff;
+}
+
+.bg-black{
+  background-color: #000;
+}
+
+.bg-transparent{
+  background-color: transparent !important;
+}
+
+/*--------------------- text color ---------------------*/
+@each $color, $value in (
+  grey: (
+    100: $grey-100,
+    200: $grey-200,
+    300: $grey-300,
+    400: $grey-400,
+    500: $grey-500,
+    600: $grey-600,
+    700: $grey-700,
+    800: $grey-800,
+    900: $grey-900
+  ),
+  blue: (
+    100: $blue-100,
+    200: $blue-200,
+    300: $blue-300,
+    400: $blue-400,
+    500: $blue-500,
+    600: $blue-600,
+    700: $blue-700,
+    800: $blue-800,
+    900: $blue-900
+  ),
+  orange: (
+    100: $orange-100,
+    200: $orange-200,
+    300: $orange-300,
+    400: $orange-400,
+    500: $orange-500,
+    600: $orange-600,
+    700: $orange-700,
+    800: $orange-800,
+    900: $orange-900
+  ),
+  red: (
+    100: $red-100,
+    200: $red-200,
+    300: $red-300,
+    400: $red-400,
+    500: $red-500,
+    600: $red-600,
+    700: $red-700,
+    800: $red-800,
+    900: $red-900
+  ),
+  green: (
+    100: $green-100,
+    200: $green-200,
+    300: $green-300,
+    400: $green-400,
+    500: $green-500,
+    600: $green-600,
+    700: $green-700,
+    800: $green-800,
+    900: $green-900
+  ),
+  yellow: (
+    100: $yellow-100,
+    200: $yellow-200,
+    300: $yellow-300,
+    400: $yellow-400,
+    500: $yellow-500,
+    600: $yellow-600,
+    700: $yellow-700,
+    800: $yellow-800,
+    900: $yellow-900
+  )
+) {
+  @each $shade, $value in $value {
+    .text-#{$color}-#{$shade} { color: $value; }
+  }
+}
+
+.text-white{
+  color: #fff;
+}
+.text-black{
+  color: #000;
+}
+
+.text-transparent{
+  color: transparent;
+}

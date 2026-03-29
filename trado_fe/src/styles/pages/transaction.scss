@@ -1,0 +1,194 @@
+.Transactions{
+  // 只保留必要的樣式，顏色交給 Ant Design ConfigProvider 處理
+  .ant-select-selector{
+    border-radius: 4px !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+  }
+  
+  .ant-picker {
+    border-radius: 4px !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+  }
+  
+  // 有值時的視覺提示（使用 Ant Design 的主色半透明）
+  .ant-select.has-value .ant-select-selector,
+  .ant-picker.has-value .ant-picker-input {
+    border-color: rgba(42, 82, 152, 0.5) !important; // 使用 login 頁面主色的半透明
+  }
+  
+  // 重置按鈕樣式（只保留必要的樣式，顏色交給 Ant Design）
+  .reset-filter-btn {
+    border-radius: 4px !important;
+    background: rgba(255, 255, 255, 0.9);
+    transition: all 0.2s;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(42, 82, 152, 0.15);
+    }
+    
+    &:active {
+      background: rgba(255, 255, 255, 0.95);
+    }
+    
+    .anticon {
+      font-size: 12px;
+      margin-right: 4px;
+    }
+  }
+  
+  .container{
+    height: calc(100% - 120px);
+    border: 1px solid var(--border-color);
+    // overflow: visible !important;
+    // border: 1px solid blue;
+    border-radius: 4px 4px 0px 0px;
+    .ant-table-wrapper{
+      border-radius: 0px 0px 4px 4px;
+    }
+    .ant-table-body{
+      .ant-table-row{
+        cursor: pointer;
+      }
+      .ant-table-cell{
+        // background-color: #f5f5f5;
+        border-bottom: 1px solid var(--border-color);
+      }
+    }
+  }
+  .expandedRow{
+    // 展開動畫效果 - 俐落穩定的高度展開
+    animation: expandRowSlideDown 1.2s ease-out;
+    overflow: hidden;
+    
+    @keyframes expandRowSlideDown {
+      from {
+        max-height: 0;
+        // padding-top: 0;
+        // padding-bottom: 0;
+      }
+      to {
+        max-height: 2000px; // 足夠大的值以容納內容
+        // padding-top: 16px;
+        // padding-bottom: 16px;
+      }
+    }
+
+    .expandedRow_fills{
+      .ant-card-body{
+        padding: 8px 4px !important;
+      }
+    }
+    .ant-table{
+      thead{
+        .ant-table-cell{
+          background-color: white !important;
+        }
+      }
+      tbody{
+        .ant-table-cell{
+          border-bottom: none;
+        }
+      }
+      // margin-top: 0px !important;
+      margin-inline: 0px !important;
+    }
+  }
+
+  // Ant Design Table 展開行的容器動畫
+  .ant-table-expanded-row {
+    animation: expandRowContainer 1.2s ease-out;
+    overflow: hidden;
+    
+    @keyframes expandRowContainer {
+      from {
+        max-height: 0;
+      }
+      to {
+        max-height: 2000px;
+      }
+    }
+  }
+
+  &-statistic{
+    border: 1px solid var(--border-color);
+    border-top: none;
+    height: 40px;
+    border-radius: 0px 0px 8px 8px;
+    background-color: #fff !important;
+    // z-index: 9999;
+    // color: #fff !important;
+  }
+
+  /* 蓋章樣式 */
+  .stamp-discipline {
+    position: absolute;
+    top: 8px;
+    right: 20px;
+    z-index: 10;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: 3px solid white;
+    transform: rotate(0deg);
+    animation: stampPulse 2s ease-in-out infinite;
+  }
+
+  .stamp-pass {
+    background: linear-gradient(135deg, #52c41a, #73d13d);
+  }
+
+  .stamp-fail {
+    background: linear-gradient(135deg, #ff4d4f, #ff7875);
+  }
+
+  .stamp-pending {
+    background: linear-gradient(135deg, #faad14, #ffc53d);
+  }
+}
+
+// 操作欄位 hover 效果：只有滑過該列時才凸顯「操作」按鈕
+.Transactions {
+  .Transactions-operation-cell {
+    .Transactions-operation-button {
+      border-radius: 4px;
+      &:hover{
+        background-color: rgba(171, 171, 171, 0.1);
+        color: #0059ab;
+      }
+    }
+  }
+}
+
+.ant-dropdown-menu{
+  border-radius: 8px !important;
+}
+
+// TradeDrawer 刪除按鈕樣式（header 右上角）
+.TradeDrawer {
+  .TradeDrawer-delete-btn {
+    border-radius: 4px !important;
+    color: #666666 !important;
+    background-color: transparent !important;
+    transition: all 0.2s ease;
+
+    .anticon {
+      font-size: 14px;
+    }
+
+    &:hover {
+      color: #b91c1c !important; // 稍暗一點的紅色
+      background-color: rgba(185, 28, 28, 0.08) !important;
+    }
+  }
+}

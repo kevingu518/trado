@@ -1,0 +1,17 @@
+.AddPositionModal{
+  .ant-select-selector{
+    border-radius: 4px !important;
+  }
+  // .ant-input-number{
+  //   border-radius: 4px !important;
+  // }
+  .ant-input-number-wrapper{
+    .ant-input-number-group-addon{
+      border-radius: 4px 0px 0px 4px !important;
+    }
+    .ant-input-number{
+      border-radius: 0px 4px 4px 0px !important;
+    }
+  }
+
+}

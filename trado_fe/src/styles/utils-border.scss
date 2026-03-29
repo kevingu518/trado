@@ -1,0 +1,51 @@
+$border-radius-none: 0px;
+$border-radius-xs: 2px;
+$border-radius-sm: 4px;
+$border-radius-base: 8px;
+$border-radius-md: 10px;
+$border-radius-lg: 12px;
+$border-radius-xl: 16px;
+
+/*--------------------- border radius ---------------------*/
+@each $size, $value in (
+  none: $border-radius-none,
+  xs: $border-radius-xs,
+  sm: $border-radius-sm,
+  base: $border-radius-base,
+  md: $border-radius-md,
+  lg: $border-radius-lg,
+  xl: $border-radius-xl,
+) {
+  .rounded-#{$size} { border-radius: $value !important; }
+}
+
+.rounded{
+  border-radius: 50%;
+}
+
+/*--------------------- border ---------------------*/
+@each $color, $value in (
+  red-100: $red-100,
+  red-200: $red-200,
+  red-300: $red-300,
+  red-400: $red-400,
+  red-500: $red-500,
+  red-600: $red-600,
+  red-700: $red-700,
+  red-800: $red-800,
+  red-900: $red-900,
+  grey-100: $grey-100,
+  grey-200: $grey-200,
+  grey-300: $grey-300,
+  grey-400: $grey-400,
+  grey-500: $grey-500,
+  grey-600: $grey-600,
+  grey-700: $grey-700,
+  grey-800: $grey-800,
+  grey-900: $grey-900,
+) {
+  .bd-#{$color} { border: 1px solid $value; }
+  
+  // hover border
+  .hover\:bd-#{$color}:hover { border: 1px solid $value !important; }
+}

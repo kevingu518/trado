@@ -1,0 +1,143 @@
+/* Trade 頁篩選下拉選單圓角 */
+.trades-select-dropdown.ant-select-dropdown {
+  border-radius: 8px;
+}
+
+.table-container{
+  height: calc(100% - 38px);
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  top: -52px;
+
+  .table-custom{
+    // position: absolute;
+    width: 100%;
+  }
+  .ant-table-body{
+    scrollbar-width: thin;
+    scrollbar-color: #e0e0e0 transparent;
+    scrollbar-gutter: stable;
+  }
+}
+
+/*--------------------- 新增交易表單樣式 ---------------------*/
+.add-trade-modal {
+
+  .ant-input-number-wrapper {
+    .ant-input-number-group-addon {
+      border-radius: 4px 0 0 4px !important;
+    }
+    .ant-input-number {
+      border-radius: 0 4px 4px 0 !important;
+    }
+  }
+
+  .trade-form {
+    .form-actions {
+      text-align: right;
+    }
+
+    .calculation-section {
+      margin: 16px 0;
+      padding: 0;
+
+      .calculation-row {
+        display: flex;
+        gap: 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        padding: 12px;
+      }
+
+      .calculation-item {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: #ffffff;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        transition: all 0.2s ease;
+
+        &:hover {
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .calculation-label {
+          color: var(--text-secondary);
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .calculation-value {
+          font-size: 16px;
+          font-weight: 600;
+          font-family: 'Noto Sans TC', sans-serif;
+        }
+      }
+    }
+
+    .ant-form-item-label > label {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .ant-select-selector{
+      border-radius: 4px !important;
+    }
+    .ant-input,
+    .ant-input-number,
+    .ant-picker {
+      border-radius: 6px;
+      border-color: var(--border-color);
+      
+      &:hover {
+        border-color: var(--sidebar-hover);
+      }
+      
+      &:focus,
+      &.ant-input-focused,
+      &.ant-picker-focused {
+        border-color: var(--sidebar-active);
+        box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+      }
+    }
+
+    .ant-btn {
+      border-radius: 6px;
+      font-weight: 500;
+      
+      &.ant-btn-primary {
+        background: var(--sidebar-active);
+        border-color: var(--sidebar-active);
+        
+        &:hover {
+          background: var(--sidebar-hover);
+          border-color: var(--sidebar-hover);
+        }
+      }
+    }
+  }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .add-trade-modal {
+    .ant-modal {
+      margin: 16px;
+      max-width: calc(100vw - 32px);
+    }
+
+    .trade-form {
+      .form-section {
+        .ant-row {
+          .ant-col {
+            margin-bottom: 16px;
+          }
+        }
+      }
+    }
+  }
+}

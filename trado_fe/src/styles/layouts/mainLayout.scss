@@ -1,0 +1,259 @@
+@import '../variables';
+@import '../mixins';
+
+.MainLayout{
+  display: flex;
+  @include size(100%, 100%);
+  position: relative;
+  padding: 12px;
+  gap: 12px;
+  overflow: hidden; // 防止偽元素溢出影響布局
+  
+  // 背景漸層會透過 inline style 動態設定
+  opacity: 0.9;
+  
+  // 動畫點效果 - 第一層（與 login 頁面的 auth-background-gradient::before 一致）
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: float 20s infinite linear;
+    z-index: 0; // 確保在背景層
+    pointer-events: none; // 不阻擋點擊事件
+  }
+  
+  // 格子效果 + 動畫點效果 - 第二層（與 login 頁面的 auth-background-pattern + auth-background-gradient::after 一致）
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    // 格子效果（與 login 頁面的 auth-background-pattern 一致）
+    background-image: 
+      linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%);
+    background-size: 60px 60px;
+    background-position: 0 0, 0 30px, 30px -30px, -30px 0px;
+    opacity: 0.3; // 與 login 頁面的 auth-background-pattern 一致
+    z-index: 0; // 確保在背景層
+    pointer-events: none; // 不阻擋點擊事件
+  }
+  @keyframes float {
+    0% {
+      transform: translate(0, 0) rotate(0deg);
+    }
+    100% {
+      transform: translate(-50px, -50px) rotate(360deg);
+    }
+  }
+
+  &-sider{
+    width: $sidebar-width;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background-color: transparent;
+    position: relative; // 確保在偽元素之上
+    z-index: 1; // 確保在背景層之上
+
+    .ant-menu{
+      width: 100%;
+      background-color: transparent;
+      
+      // Menu item 樣式
+      .ant-menu-item {
+        // margin: 4px 0 !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease;
+        margin: 0;
+        margin-bottom: 4px;
+        padding: 0 !important;
+        // height: 48px !important;
+        @include size($sidebar-width, $sidebar-width);
+        // Menu icon 改為白色，並放大
+        .ant-menu-item-icon,
+        .anticon {
+          color: #ffffff !important;
+          font-size: 20px !important; // 放大 icon（預設約 14px）
+          width: 20px !important;
+          height: 20px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          margin: 0 auto !important;
+          margin-top: 12px !important;
+          transition: all 0.3s ease;
+        }
+        
+        // Menu item 文字顏色
+        .ant-menu-title-content {
+          color: #ffffff;
+        }
+        
+        // Hover 狀態 - 半透明背景效果
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.15) !important;
+          
+          .ant-menu-item-icon,
+          .anticon {
+            color: #ffffff !important;
+            transform: scale(1.1); // hover 時稍微放大
+          }
+        }
+        
+        // Selected 狀態
+        &.ant-menu-item-selected {
+          background-color: rgba(255, 255, 255, 0.2) !important;
+          
+          .ant-menu-item-icon,
+          .anticon {
+            color: #ffffff !important;
+          }
+        }
+      }
+      .ant-avatar{
+        @include size($sidebar-width/2, $sidebar-width/2);
+      }
+    }
+    
+    // Sidebar Avatar 樣式 - 白色邊框和陰影突出圖片
+    .ant-btn {
+      .ant-avatar {
+        // border: 2px solid #ffffff !important;
+        box-shadow: 
+          0 0 0 1px rgba(255, 255, 255, 0.5),
+          0 2px 8px rgba(0, 0, 0, 0.15),
+          0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.3s ease !important;
+      }
+      
+      &:hover .ant-avatar {
+        box-shadow: 
+          0 0 0 1px rgba(255, 255, 255, 0.8),
+          0 4px 12px rgba(0, 0, 0, 0.2),
+          0 6px 16px rgba(0, 0, 0, 0.15) !important;
+        transform: scale(1.05) !important;
+      }
+    }
+
+    .ant-btn,
+    .ant-btn-primary,
+    .ant-btn.ant-btn-primary {
+      width: $sidebar-width !important;
+      height: $sidebar-width !important;
+      min-width: $sidebar-width !important;
+      border-radius: 8px !important;
+      background-color: transparent !important;
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: all 0.3s ease !important;
+      box-shadow: none !important;
+      
+      // Hover 效果（與 Menu item 一致）
+      &:hover,
+      &:hover.ant-btn-primary {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        background: rgba(255, 255, 255, 0.15) !important;
+        border-color: transparent !important;
+        transform: none !important;
+        box-shadow: none !important;
+      }
+      
+      // Active 狀態
+      &:active,
+      &:active.ant-btn-primary {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: transparent !important;
+      }
+      
+      // Focus 狀態
+      &:focus,
+      &:focus.ant-btn-primary {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        background: rgba(255, 255, 255, 0.15) !important;
+        border-color: transparent !important;
+      }
+    }
+  }
+
+  &-content{
+    // width: calc(100% - $sidebar-width);
+    width: 50%;
+    flex: 1;
+    border-radius: 8px;
+    position: relative; // 確保在偽元素之上
+    z-index: 1; // 確保在背景層之上
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    // opacity: 0.6;
+    // background-color: rgba(227, 226, 226, 0.905);
+    // border: 1px solid white;
+    // 半透明白色 + 毛玻璃
+    // background: rgba(255, 255, 255, 0.874);
+    // background: #f6f7f9;
+    background: #f5f5f5;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(10px);
+    
+    // 邊框和陰影
+    // border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.1),
+      0 4px 16px rgba(0, 0, 0, 0.05);
+
+    .MainLayout-scroll{
+      height: 100%;
+      // padding: 8px 12px 12px;
+      box-sizing: border-box;
+    }
+  }
+}
+
+// Popover 樣式（浮起來的感覺）- 全局樣式，因為 Popover 是 portal 渲染
+.ant-popover {
+  .ant-popover-inner {
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 12px !important;
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.2),
+      0 4px 16px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  }
+  
+  .ant-popover-arrow {
+    &::before {
+      background: rgba(255, 255, 255, 0.98) !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+  }
+  
+  .ant-popover-title {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    color: #1a1a1a !important;
+  }
+  
+  .ant-popover-inner-content {
+    color: #1a1a1a !important;
+  }
+}

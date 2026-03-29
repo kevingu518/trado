@@ -1,0 +1,555 @@
+@import './variables';
+
+/*--------------------- 間距工具類別 ---------------------*/
+
+// Margin 工具類別
+@each $size, $value in (
+  none: 0,
+  xs: $spacing-xs,
+  sm: $spacing-sm,
+  md: $spacing-md,
+  lg: $spacing-lg,
+  xl: $spacing-xl,
+  xxl: $spacing-xxl
+) {
+  // 所有方向的 margin
+  .m-#{$size} { margin: $value; }
+  
+  // 單一方向的 margin
+  .mt-#{$size} { margin-top: $value; }
+  .mr-#{$size} { margin-right: $value; }
+  .mb-#{$size} { margin-bottom: $value; }
+  .ml-#{$size} { margin-left: $value; }
+  
+  // 水平方向的 margin (左右)
+  .mx-#{$size} { 
+    margin-left: $value; 
+    margin-right: $value; 
+  }
+  
+  // 垂直方向的 margin (上下)
+  .my-#{$size} { 
+    margin-top: $value; 
+    margin-bottom: $value; 
+  }
+  
+  // 負數 margin (用於調整間距)
+  .m-n#{$size} { margin: -$value; }
+  .mt-n#{$size} { margin-top: -$value; }
+  .mr-n#{$size} { margin-right: -$value; }
+  .mb-n#{$size} { margin-bottom: -$value; }
+  .ml-n#{$size} { margin-left: -$value; }
+  .mx-n#{$size} { 
+    margin-left: -$value; 
+    margin-right: -$value; 
+  }
+  .my-n#{$size} { 
+    margin-top: -$value; 
+    margin-bottom: -$value; 
+  }
+}
+
+// 特殊 margin 值
+.m-0 { margin: 0; }
+.m-auto { margin: auto; }
+.mx-auto { 
+  margin-left: auto; 
+  margin-right: auto; 
+}
+/*--------------------- 字體組合工具類別 ---------------------*/
+
+// 字體大小 + 行高的組合
+@each $size, $font-size, $line-height in (
+  xs: 12px 1.2,
+  sm: 14px 1.4,
+  base: 16px 1.5,
+  md: 18px 1.6,
+  lg: 20px 1.8
+) {
+  .text-#{$size}-leading { 
+    font-size: $font-size; 
+    line-height: $line-height; 
+  }
+  
+  .fz-#{$size}-lh { 
+    font-size: $font-size !important; 
+    line-height: $line-height !important; 
+  }
+}
+/*--------------------- Padding 工具類別 ---------------------*/
+
+// Padding 工具類別
+@each $size, $value in (
+  xs: $spacing-xs,
+  sm: $spacing-sm,
+  md: $spacing-md,
+  lg: $spacing-lg,
+  xl: $spacing-xl,
+  xxl: $spacing-xxl
+) {
+  // 所有方向的 padding
+  .p-#{$size} { padding: $value; }
+  
+  // 單一方向的 padding
+  .pt-#{$size} { padding-top: $value; }
+  .pr-#{$size} { padding-right: $value; }
+  .pb-#{$size} { padding-bottom: $value; }
+  .pl-#{$size} { padding-left: $value; }
+  
+  // 水平方向的 padding (左右)
+  .px-#{$size} { 
+    padding-left: $value; 
+    padding-right: $value; 
+  }
+  
+  // 垂直方向的 padding (上下)
+  .py-#{$size} { 
+    padding-top: $value; 
+    padding-bottom: $value; 
+  }
+}
+
+// 特殊 padding 值
+.p-0 { padding: 0; }
+
+/*--------------------- 陰影工具類別 ---------------------*/
+
+// 基礎陰影 - 使用迴圈生成
+@each $size, $value in (
+  none: $shadow-none,
+  sm: $shadow-sm,
+  md: $shadow-md,
+  lg: $shadow-lg,
+  xl: $shadow-xl
+) {
+  .shadow-#{$size} { 
+    box-shadow: $value; 
+  }
+}
+
+// 語義化陰影 - 使用迴圈生成
+@each $type, $value in (
+  container: $shadow-container,
+  card: $shadow-card,
+  elevated: $shadow-elevated,
+  inner: $shadow-inner
+) {
+  .shadow-#{$type} { 
+    box-shadow: $value; 
+  }
+}
+
+// 彩色陰影 - 使用迴圈生成
+@each $color, $value in (
+  primary: $shadow-primary,
+  success: $shadow-success,
+  warning: $shadow-warning,
+  error: $shadow-error
+) {
+  .shadow-#{$color} { 
+    box-shadow: $value; 
+  }
+}
+
+/*--------------------- 響應式間距 ---------------------*/
+
+// 在小螢幕上調整間距
+@media (max-width: 768px) {
+  @each $size, $value in (
+    xs: $spacing-xs,
+    sm: $spacing-sm,
+    md: $spacing-md,
+    lg: $spacing-lg,
+    xl: $spacing-xl,
+    xxl: $spacing-xxl
+  ) {
+    .sm\:m-#{$size} { margin: $value; }
+    .sm\:p-#{$size} { padding: $value; }
+    .sm\:mx-#{$size} { 
+      margin-left: $value; 
+      margin-right: $value; 
+    }
+    .sm\:px-#{$size} { 
+      padding-left: $value; 
+      padding-right: $value; 
+    }
+  }
+}
+
+/*--------------------- 雜項 ---------------------*/
+.full-width {
+  width: 100%;
+}
+
+.full-height {
+  height: 100%;
+}
+
+.bdr{
+  border: 1px solid red;
+}
+
+/*--------------------- 間距組合工具 ---------------------*/
+
+// 常用的間距組合
+.spacing-stack-xs > * + * { margin-top: $spacing-xs; }
+.spacing-stack-sm > * + * { margin-top: $spacing-sm; }
+.spacing-stack-md > * + * { margin-top: $spacing-md; }
+.spacing-stack-lg > * + * { margin-top: $spacing-lg; }
+.spacing-stack-xl > * + * { margin-top: $spacing-xl; }
+
+// 水平間距組合
+.spacing-inline-xs > * + * { margin-left: $spacing-xs; }
+.spacing-inline-sm > * + * { margin-left: $spacing-sm; }
+.spacing-inline-md > * + * { margin-left: $spacing-md; }
+.spacing-inline-lg > * + * { margin-left: $spacing-lg; }
+.spacing-inline-xl > * + * { margin-left: $spacing-xl; }
+
+
+/*--------------------- 背景顏色 ---------------------*/
+@each $color, $shades in (
+  grey: (
+    100: $grey-100,
+    200: $grey-200,
+    300: $grey-300,
+    400: $grey-400,
+    500: $grey-500,
+    600: $grey-600,
+    700: $grey-700,
+    800: $grey-800,
+    900: $grey-900
+  ),
+  blue: (
+    100: $blue-100,
+    200: $blue-200,
+    300: $blue-300,
+    400: $blue-400,
+    500: $blue-500,
+    600: $blue-600,
+    700: $blue-700,
+    800: $blue-800,
+    900: $blue-900
+  ),
+  orange: (
+    100: $orange-100,
+    200: $orange-200,
+    300: $orange-300,
+    400: $orange-400,
+    500: $orange-500,
+    600: $orange-600,
+    700: $orange-700,
+    800: $orange-800,
+    900: $orange-900
+  )
+) {
+  @each $shade, $value in $shades {
+    // 基礎背景色
+    .bg-#{$color}-#{$shade} {
+      background-color: $value;
+    }
+    
+    // Hover 背景色
+    .hover\:bg-#{$color}-#{$shade}:hover {
+      background-color: $value;
+    }
+    
+    // Focus 背景色
+    .focus\:bg-#{$color}-#{$shade}:focus {
+      background-color: $value;
+    }
+    
+    // Active 背景色
+    .active\:bg-#{$color}-#{$shade}:active {
+      background-color: $value;
+    }
+  }
+}
+.bg-white{
+  background-color: #fff;
+}
+/*--------------------- 邊框色工具類別 ---------------------*/
+
+// 邊框色工具類別
+@each $color, $shades in (
+  grey: (
+    100: $grey-100,
+    200: $grey-200,
+    300: $grey-300,
+    400: $grey-400,
+    500: $grey-500,
+    600: $grey-600,
+    700: $grey-700,
+    800: $grey-800,
+    900: $grey-900
+  ),
+  blue: (
+    100: $blue-100,
+    200: $blue-200,
+    300: $blue-300,
+    400: $blue-400,
+    500: $blue-500,
+    600: $blue-600,
+    700: $blue-700,
+    800: $blue-800,
+    900: $blue-900
+  ),
+  orange: (
+    100: $orange-100,
+    200: $orange-200,
+    300: $orange-300,
+    400: $orange-400,
+    500: $orange-500,
+    600: $orange-600,
+    700: $orange-700,
+    800: $orange-800,
+    900: $orange-900
+  ),
+  red: (
+    100: $red-100,
+    200: $red-200,
+    300: $red-300,
+    400: $red-400,
+    500: $red-500,
+    600: $red-600,
+    700: $red-700,
+    800: $red-800,
+    900: $red-900
+  ),
+  green: (
+    100: $green-100,
+    200: $green-200,
+    300: $green-300,
+    400: $green-400,
+    500: $green-500,
+    600: $green-600,
+    700: $green-700,
+    800: $green-800,
+    900: $green-900
+  )
+) {
+  @each $shade, $value in $shades {
+    // 基礎邊框色
+    .border-#{$color}-#{$shade} {
+      border: 1px solid $value;
+    }
+    
+    // Hover 邊框色
+    .hover\:border-#{$color}-#{$shade}:hover {
+      border: 1px solid $value;
+    }
+    
+    // Focus 邊框色
+    .focus\:border-#{$color}-#{$shade}:focus {
+      border: 1px solid $value;
+    }
+  }
+}
+
+/*--------------------- 組合工具類別 ---------------------*/
+
+// 背景 + 文字色組合
+@each $color, $shades in (
+  grey: (
+    100: $grey-100,
+    200: $grey-200,
+    300: $grey-300,
+    400: $grey-400,
+    500: $grey-500,
+    600: $grey-600,
+    700: $grey-700,
+    800: $grey-800,
+    900: $grey-900
+  ),
+  blue: (
+    100: $blue-100,
+    200: $blue-200,
+    300: $blue-300,
+    400: $blue-400,
+    500: $blue-500,
+    600: $blue-600,
+    700: $blue-700,
+    800: $blue-800,
+    900: $blue-900
+  ),
+  orange: (
+    100: $orange-100,
+    200: $orange-200,
+    300: $orange-300,
+    400: $orange-400,
+    500: $orange-500,
+    600: $orange-600,
+    700: $orange-700,
+    800: $orange-800,
+    900: $orange-900
+  ),
+  red: (
+    100: $red-100,
+    200: $red-200,
+    300: $red-300,
+    400: $red-400,
+    500: $red-500,
+    600: $red-600,
+    700: $red-700,
+    800: $red-800,
+    900: $red-900
+  ),
+  green: (
+    100: $green-100,
+    200: $green-200,
+    300: $green-300,
+    400: $green-400,
+    500: $green-500,
+    600: $green-600,
+    700: $green-700,
+    800: $green-800,
+    900: $green-900
+  )
+) {
+  @each $shade, $value in $shades {
+    // 背景色 + 對應的文字色
+    .bg-#{$color}-#{$shade} {
+      background-color: $value;
+      
+      // 根據背景色自動設定文字色
+      @if $shade <= 300 {
+        color: $grey-800; // 淺色背景用深色文字
+      } @else if $shade >= 700 {
+        color: $grey-100; // 深色背景用淺色文字
+      } @else {
+        color: $grey-700; // 中等色調用中等文字色
+      }
+    }
+    
+    // Hover 組合效果
+    .hover\:bg-#{$color}-#{$shade}:hover {
+      background-color: $value;
+      
+      @if $shade <= 300 {
+        color: $grey-800;
+      } @else if $shade >= 700 {
+        color: $grey-100;
+      } @else {
+        color: $grey-700;
+      }
+    }
+  }
+}
+
+/*--------------------- border-radius ---------------------*/
+@each $size, $value in (
+  none: $border-radius-none,
+  xs: $border-radius-xs,
+  sm: $border-radius-sm,
+  md: $border-radius-md,
+  lg: $border-radius-lg,
+  xl: $border-radius-xl,
+  xxl: $border-radius-xxl
+) {
+  .rounded-#{$size} { border-radius: $value !important; }
+}
+/*--------------------- color ---------------------*/
+@each $color, $value in (
+  grey: (
+    100: $grey-100,
+    200: $grey-200,
+    300: $grey-300,
+    400: $grey-400,
+    500: $grey-500,
+    600: $grey-600,
+    700: $grey-700,
+    800: $grey-800,
+    900: $grey-900
+  )
+) {
+  @each $shade, $value in $value {
+    .text-#{$color}-#{$shade} { color: $value; }
+  }
+}
+/*--------------------- container ---------------------*/
+.container{
+  width: 100%;
+  margin: 0 auto;
+}
+.full-width{
+  width: 100%;
+}
+.full-height{
+  height: 100%;
+}
+.absolute-full{
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+}
+.relative{
+  position: relative;
+}
+.absolute{
+  position: absolute;
+}
+
+/*--------------------- 使用 between ---------------------*/
+.useBetween{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.useStart{
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+.useEnd{
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.useBetween{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.useBetweenEnd{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.useEvenly{
+  display: flex;
+  justify-content:space-evenly;
+  align-items: center;
+}
+.useAround{
+  display: flex;
+  justify-content:space-around;
+  align-items: flex-start;
+}
+
+/*--------------------- 文字大小 ---------------------*/
+@each $size, $value in (
+  xs: $font-size-xs,
+  sm: $font-size-sm,
+  md: $font-size-md,
+  lg: $font-size-lg,
+  xl: $font-size-xl
+) {
+  .fz-#{$size} { font-size: $value; }
+  .fzl-#{$size} { 
+    font-size: $value !important; 
+    line-height: $value !important; 
+  }
+}
+
+/*--------------------- 字體粗細 ---------------------*/
+.font-bold{
+  font-weight: 700;
+}
+/*--------------------- 字體 ---------------------*/
+.font-serif{
+  font-family: $font-family-serif;
+}
+.font-sans{
+  font-family: $font-family;
+}

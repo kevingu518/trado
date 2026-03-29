@@ -1,0 +1,14 @@
+@import '../variables';
+@import '../mixins';
+
+.auth-layout{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  @include size(100dvh, 100%);
+  background-color: #ddd;
+}
+
+.auth-container{
+  min-width: 400px;
+}

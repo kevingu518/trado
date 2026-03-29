@@ -1,0 +1,61 @@
+$shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.1);
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+$shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+
+/*--------------------- box-shadow ---------------------*/
+@each $size, $value in (
+  none: $shadow-none,
+  xs: $shadow-xs,
+  sm: $shadow-sm,
+  md: $shadow-md,
+  lg: $shadow-lg,
+  xl: $shadow-xl
+) {
+  .shadow-#{$size} { box-shadow: $value; }
+}
+
+/*--------------------- opacity ---------------------*/
+@each $size, $value in (
+  10: 0.1,
+  20: 0.2,
+  30: 0.3,
+  40: 0.4,
+  50: 0.5,
+  60: 0.6,
+  70: 0.7,
+  80: 0.8,
+  90: 0.9,
+  100: 1
+) {
+  .op-#{$size} { opacity: $value; }
+}
+
+/*--------------------- cursor ---------------------*/
+.cup{
+  cursor: pointer;
+}
+
+/*--------------------- user-select ---------------------*/
+.select-none{
+  user-select: none;
+}
+
+/*--------------------- pointer-events ---------------------*/
+.pointer-events-none{
+  pointer-events: none;
+}
+/*--------------------- overflow ---------------------*/
+.overflow-visible{
+  overflow: visible;
+}
+.overflow-scroll{
+  overflow: scroll;
+}
+.overflow-auto{
+  overflow: auto;
+}
+.overflow-hidden{
+  overflow: hidden !important;
+}
