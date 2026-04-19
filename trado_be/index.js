@@ -7,7 +7,10 @@ import healthRoutes from './routes/healthRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import tradeRoutes from './routes/tradeRoutes.js';
 import strategyRoutes from './routes/strategyRoutes.js';
+import accountRoutes from './routes/accountRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 import devRoutes from './routes/devRoutes.js';
+import './jobs/snapshotJob.js';
 
 const app = express();
 
@@ -48,6 +51,8 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/trades', tradeRoutes);
 app.use('/api/strategies', strategyRoutes);
+app.use('/api/account', accountRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/dev', devRoutes);
 
 // 404 handler

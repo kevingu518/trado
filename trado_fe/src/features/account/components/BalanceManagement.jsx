@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button, Space, Table, Tag, DatePicker } from 'antd';
-import { PlusOutlined, MinusOutlined } from '@ant-design/icons';
+import { Button, Space, Table, Tag, DatePicker, Modal, InputNumber, Statistic } from 'antd';
+import { PlusOutlined, MinusOutlined, EditOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useBalance, useBalanceHistory } from '../hooks/useAccount';
 import DepositModal from './DepositModal';
@@ -9,11 +9,13 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { colorThemes } from '@/config/colorThemes';
 
 const BalanceManagement = () => {
-  const { balance, loading, deposit, withdraw, fetchBalance } = useBalance();
+  const { balance, loading, deposit, withdraw, setCashBalance, fetchBalance } = useBalance();
   const { history, loading: historyLoading, pagination, fetchHistory } = useBalanceHistory();
   const { theme } = useTheme();
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [cashModalOpen, setCashModalOpen] = useState(false);
+  const [cashInput, setCashInput] = useState(null);
   const [dateRange, setDateRange] = useState(null);
 
   // 處理入金
@@ -35,6 +37,19 @@ const BalanceManagement = () => {
       setWithdrawModalOpen(false);
       await fetchBalance();
       await fetchHistory();
+    } catch (error) {
+      // 錯誤已在 hook 中處理
+    }
+  };
+
+  // 處理設定現金餘額
+  const handleSetCashBalance = async () => {
+    if (cashInput == null || cashInput < 0) return;
+    try {
+      await setCashBalance(cashInput);
+      setCashModalOpen(false);
+      setCashInput(null);
+      await fetchBalance();
     } catch (error) {
       // 錯誤已在 hook 中處理
     }
@@ -67,16 +82,19 @@ const BalanceManagement = () => {
       dataIndex: 'amount',
       key: 'amount',
       render: (amount, record) => {
-        // 入金用紅色（主題色），出金用綠色（主題色）
-        // 使用專案定義的主題色：紅色主題的 primary 和綠色主題的 primary
-        const redThemeColor = colorThemes.red.primary; // '#c92a2a' 紅色
-        const greenThemeColor = colorThemes.green.primary; // '#3f8f4e' 綠色
-        
-        const depositColor = redThemeColor; // 入金用紅色主題色
-        const withdrawColor = greenThemeColor; // 出金用綠色主題色
-        
+        if (record.type === 'set_balance') {
+          return (
+            <span style={{ fontWeight: 'bold' }}>
+              NT$ {amount.toLocaleString()}
+            </span>
+          );
+        }
+
+        const depositColor = colorThemes.red.primary;
+        const withdrawColor = colorThemes.green.primary;
+
         return (
-          <span style={{ 
+          <span style={{
             color: record.type === 'deposit' ? depositColor : withdrawColor,
             fontWeight: 'bold'
           }}>
@@ -93,6 +111,16 @@ const BalanceManagement = () => {
       render: (balance) => `NT$ ${balance.toLocaleString()}`,
     },
     {
+      title: '類型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type) => {
+        const labels = { deposit: '入金', withdraw: '出金', set_balance: '設定餘額' };
+        const colors = { deposit: 'red', withdraw: 'green', set_balance: 'blue' };
+        return <Tag color={colors[type] || 'default'}>{labels[type] || type}</Tag>;
+      },
+    },
+    {
       title: '方式',
       dataIndex: 'method',
       key: 'method',
@@ -107,62 +135,32 @@ const BalanceManagement = () => {
     },
   ];
 
-  // 假資料用於測試顯示
-  const mockHistory = [
-    {
-      id: '1',
-      type: 'deposit',
-      amount: 100000,
-      balance: 1000000,
-      date: '2024-01-15',
-      method: '銀行轉帳',
-      notes: '初始資金',
-    },
-    {
-      id: '2',
-      type: 'deposit',
-      amount: 50000,
-      balance: 1050000,
-      date: '2024-01-20',
-      method: '銀行轉帳',
-      notes: '追加資金',
-    },
-    {
-      id: '3',
-      type: 'withdraw',
-      amount: 30000,
-      balance: 1020000,
-      date: '2024-01-25',
-      method: '銀行轉帳',
-      notes: '提領部分資金',
-    },
-    {
-      id: '4',
-      type: 'deposit',
-      amount: 20000,
-      balance: 1040000,
-      date: '2024-02-01',
-      method: '現金',
-      notes: '',
-    },
-    {
-      id: '5',
-      type: 'withdraw',
-      amount: 50000,
-      balance: 990000,
-      date: '2024-02-10',
-      method: '銀行轉帳',
-      notes: '提領資金',
-    },
-  ];
-
-  // 使用假資料或真實資料
-  const displayHistory = history.length > 0 ? history : mockHistory;
+  const displayHistory = history;
 
   return (
     <div>
+      {/* 當前現金餘額 */}
+      <div style={{ marginBottom: 24 }}>
+        <Statistic
+          title="帳戶現金餘額"
+          value={balance.balance}
+          prefix="NT$"
+          loading={loading}
+        />
+      </div>
+
       {/* 操作按鈕 */}
       <Space style={{ marginBottom: 24 }}>
+        <Button
+          icon={<EditOutlined />}
+          onClick={() => {
+            setCashInput(balance.balance);
+            setCashModalOpen(true);
+          }}
+          style={{ borderRadius: '4px' }}
+        >
+          設定現金餘額
+        </Button>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -223,6 +221,32 @@ const BalanceManagement = () => {
         loading={loading}
         availableBalance={balance.availableBalance}
       />
+
+      {/* 設定現金餘額 Modal */}
+      <Modal
+        title="設定現金餘額"
+        open={cashModalOpen}
+        onCancel={() => setCashModalOpen(false)}
+        onOk={handleSetCashBalance}
+        confirmLoading={loading}
+        okText="確認"
+        cancelText="取消"
+      >
+        <p style={{ marginBottom: 16, color: '#666' }}>
+          輸入你券商帳戶目前的現金餘額，系統會據此計算總資產。
+        </p>
+        <InputNumber
+          style={{ width: '100%' }}
+          size="large"
+          min={0}
+          step={1000}
+          prefix="NT$"
+          value={cashInput}
+          onChange={setCashInput}
+          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+          parser={(value) => value.replace(/,/g, '')}
+        />
+      </Modal>
     </div>
   );
 };

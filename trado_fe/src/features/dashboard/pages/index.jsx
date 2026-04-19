@@ -55,7 +55,8 @@ const Dashboard = () => {
   }
 
   const cashPct   = acct.totalAssets ? Math.round((acct.cashLevel / acct.totalAssets) * 100) : 0
-  const trendDiff = acct.assetTrend[acct.assetTrend.length - 1] - acct.assetTrend[0]
+  const trend = acct.assetTrend || []
+  const trendDiff = trend.length > 1 ? trend[trend.length - 1] - trend[0] : 0
   const trendClr  = pnlColor(trendDiff)
 
   return (
@@ -97,23 +98,29 @@ const Dashboard = () => {
                   <div className="hero-value text-h4">
                     {fmtMoney(acct.totalAssets)}<span className="mc-unit text-hint">元</span>
                   </div>
-                  <Sparkline data={acct.assetTrend} color={trendClr} />
+                  {acct.assetTrend && acct.assetTrend.length > 1 && (
+                    <Sparkline data={acct.assetTrend} color={trendClr} />
+                  )}
                 </div>
                 <div className="account-status-grid">
                   <div className="account-status-item">
                     <span className="mc-label text-hint">現金水位</span>
                     <div className="account-status-center">
-                      <Tooltip title={`${fmtMoney(acct.cashLevel)} 元`}>
-                        <div style={{ cursor: 'default' }}>
-                          <Progress
-                            type="dashboard"
-                            percent={cashPct}
-                            strokeColor={theme.primary}
-                            size={72}
-                            format={(pct) => <span className="text-hint fw-600">{pct}%</span>}
-                          />
-                        </div>
-                      </Tooltip>
+                      {acct.cashLevel != null ? (
+                        <Tooltip title={`${fmtMoney(acct.cashLevel)} 元`}>
+                          <div style={{ cursor: 'default' }}>
+                            <Progress
+                              type="dashboard"
+                              percent={cashPct}
+                              strokeColor={theme.primary}
+                              size={72}
+                              format={(pct) => <span className="text-hint fw-600">{pct}%</span>}
+                            />
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <span className="text-hint">--</span>
+                      )}
                     </div>
                   </div>
                   <div className="account-status-item">
@@ -123,7 +130,7 @@ const Dashboard = () => {
                         <div style={{ fontSize: 12 }}>
                           {acct.positions?.map(p => (
                             <div key={p.symbol} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '2px 0' }}>
-                              <span>{p.symbol} {p.name}</span>
+                              <span>{p.symbol}</span>
                               <span style={{ color: p.direction === 'long' ? CLR_UP : CLR_DOWN }}>
                                 {p.direction === 'long' ? '多' : '空'}
                               </span>
@@ -188,7 +195,9 @@ const Dashboard = () => {
                       />
                     </div>
                     <span className="text-body fw-600">
-                      {Math.round((discipline.disciplinePass / (discipline.disciplinePass + discipline.disciplineFail)) * 100)}%
+                      {discipline.disciplinePass + discipline.disciplineFail > 0
+                        ? Math.round((discipline.disciplinePass / (discipline.disciplinePass + discipline.disciplineFail)) * 100)
+                        : 0}%
                     </span>
                   </div>
                   <span className="text-hint">
@@ -253,8 +262,8 @@ const Dashboard = () => {
                   <div className="perf-return-row">
                     <div className="perf-return-col">
                       <span className="mc-label text-hint">我的報酬率</span>
-                      <span className="perf-return-big" style={{ color: pnlColor(perf.myReturn) }}>
-                        {fmtPct(perf.myReturn)}
+                      <span className="perf-return-big" style={{ color: perf.myReturn != null ? pnlColor(perf.myReturn) : CLR_NONE }}>
+                        {perf.myReturn != null ? fmtPct(perf.myReturn) : '--'}
                       </span>
                       <span className="perf-return-sub fw-600" style={{ color: pnlColor(perf.myPnL) }}>
                         {fmtSign(perf.myPnL)}{fmtMoney(perf.myPnL)}<span className="mc-unit text-hint">元</span>
@@ -262,11 +271,11 @@ const Dashboard = () => {
                     </div>
                     <div className="perf-return-col">
                       <span className="mc-label text-hint">大盤報酬率</span>
-                      <span className="perf-return-big" style={{ color: pnlColor(perf.marketReturn) }}>
-                        {fmtPct(perf.marketReturn)}
+                      <span className="perf-return-big" style={{ color: perf.marketReturn != null ? pnlColor(perf.marketReturn) : CLR_NONE }}>
+                        {perf.marketReturn != null ? fmtPct(perf.marketReturn) : '--'}
                       </span>
-                      <span className="perf-return-sub fw-600" style={{ color: pnlColor(perfDiff) }}>
-                        超額 {fmtPct(perfDiff)}
+                      <span className="perf-return-sub fw-600" style={{ color: perfDiff != null ? pnlColor(perfDiff) : CLR_NONE }}>
+                        {perfDiff != null ? `超額 ${fmtPct(perfDiff)}` : '--'}
                       </span>
                     </div>
                   </div>
@@ -489,33 +498,37 @@ const Dashboard = () => {
                   <div className="empty-hint text-hint">此時段無交易資料</div>
                 ) : (
                   <div className="trade-habit-row">
-                    {/* 進場點位分佈 */}
+                    {/* 進場點位分佈（需要大盤資料） */}
                     <div className="trade-habit-col">
                       <div className="trend-chart-label text-hint">進場點位分佈</div>
-                      <Column
-                        data={indexDist.flatMap(d => [
-                          { range: d.range, direction: '做多', count: d['做多'] },
-                          { range: d.range, direction: '做空', count: d['做空'] },
-                        ])}
-                        xField="range"
-                        yField="count"
-                        colorField="direction"
-                        group={true}
-                        scale={{ color: { domain: ['做多', '做空'], range: [CLR_UP, CLR_DOWN] } }}
-                        style={(d) => ({
-                          radius: [4, 4, 0, 0],
-                          fill: d.direction === '做多' ? CLR_UP : CLR_DOWN,
-                          fillOpacity: 0.85,
-                          maxWidth: 24,
-                        })}
-                        axis={{
-                          x: { title: false },
-                          y: { title: false },
-                        }}
-                        tooltip={{ items: [{ field: 'count', name: '筆數' }] }}
-                        height={200}
-                        autoFit={true}
-                      />
+                      {indexDist.length > 0 ? (
+                        <Column
+                          data={indexDist.flatMap(d => [
+                            { range: d.range, direction: '做多', count: d['做多'] },
+                            { range: d.range, direction: '做空', count: d['做空'] },
+                          ])}
+                          xField="range"
+                          yField="count"
+                          colorField="direction"
+                          group={true}
+                          scale={{ color: { domain: ['做多', '做空'], range: [CLR_UP, CLR_DOWN] } }}
+                          style={(d) => ({
+                            radius: [4, 4, 0, 0],
+                            fill: d.direction === '做多' ? CLR_UP : CLR_DOWN,
+                            fillOpacity: 0.85,
+                            maxWidth: 24,
+                          })}
+                          axis={{
+                            x: { title: false },
+                            y: { title: false },
+                          }}
+                          tooltip={{ items: [{ field: 'count', name: '筆數' }] }}
+                          height={200}
+                          autoFit={true}
+                        />
+                      ) : (
+                        <div className="empty-hint text-hint" style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>暫無大盤資料</div>
+                      )}
                     </div>
 
                     {/* 每週交易量 */}

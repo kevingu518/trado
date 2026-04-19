@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { NotFoundError, AppError } from '../errors/index.js';
+import AccountService from './AccountService.js';
 
 class TradeService {
   async getAllTrades(userId, options = {}) {
@@ -313,6 +314,7 @@ class TradeService {
     let totalShares = 0;
     let totalCost = 0; // 總成本（含手續費）
     let totalFee = 0; // 總手續費
+    let totalTax = 0; // 總證交稅
     let totalBuyCost = 0; // 買入總成本（不含手續費）
     let totalSellRevenue = 0; // 賣出總收入（不含手續費）
 
@@ -320,7 +322,9 @@ class TradeService {
       const shares = adj.shares;
       const price = parseFloat(adj.price);
       const fee = adj.fee || 0;
+      const tax = adj.tax || 0;
       totalFee += fee; // 累加所有手續費
+      totalTax += tax; // 累加所有證交稅
 
       if (adj.action === 'buy') {
         // 買入：增加股數和成本
@@ -389,7 +393,7 @@ class TradeService {
     let netProfitLoss = null;
     if (shouldBeClosed && adjustments.length > 0) {
       grossProfitLoss = Math.round(totalSellRevenue - totalBuyCost);
-      netProfitLoss = Math.round(grossProfitLoss - totalFee);
+      netProfitLoss = Math.round(grossProfitLoss - totalFee - totalTax);
     }
 
     // 準備更新資料
@@ -398,6 +402,7 @@ class TradeService {
       avgPrice: avgPrice ? avgPrice : null,
       totalValue: totalValue ? totalValue : null,
       totalFee: totalFee > 0 ? totalFee : null,
+      totalTax: totalTax > 0 ? totalTax : null,
       entryCount: entryCount,  // 保留 0，不要設為 null
       holdingDuration: holdingDuration !== null ? holdingDuration : null,
       grossProfitLoss,
@@ -419,11 +424,25 @@ class TradeService {
       data: updateData,
     });
 
+    // 每次 metrics 更新都觸發快照更新（因為交易會影響現金餘額）
+    const trade = await prisma.trade.findUnique({
+      where: { id: tradeId },
+      select: { userId: true },
+    });
+    if (trade) {
+      try {
+        await AccountService.createOrUpdateSnapshot(trade.userId, new Date());
+      } catch (err) {
+        console.error('[TradeService] Failed to update snapshot:', err.message);
+      }
+    }
+
     return {
       totalShares: totalShares > 0 ? totalShares : null,
       avgPrice,
       totalValue,
       totalFee: totalFee > 0 ? totalFee : null,
+      totalTax: totalTax > 0 ? totalTax : null,
       entryCount: entryCount,
       holdingDuration: holdingDuration !== null ? holdingDuration : null,
       grossProfitLoss,

@@ -153,6 +153,23 @@ export const useBalance = () => {
     }
   };
 
+  // 設定現金餘額
+  const setCashBalance = async (targetBalance) => {
+    setLoading(true);
+    try {
+      const data = await accountAPI.setCashBalance({ balance: targetBalance });
+      const transformed = transformBalanceData(data);
+      setBalance(transformed);
+      message.success('現金餘額設定成功');
+      return transformed;
+    } catch (error) {
+      message.error(error.msg || '設定現金餘額失敗');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchBalance();
   }, []);
@@ -163,6 +180,7 @@ export const useBalance = () => {
     fetchBalance,
     deposit,
     withdraw,
+    setCashBalance,
   };
 };
 

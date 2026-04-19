@@ -35,8 +35,12 @@ export const accountAPI = {
     request.post('/account/deposit', data),
   
   // 出金
-  withdraw: (data) => 
+  withdraw: (data) =>
     request.post('/account/withdraw', data),
+
+  // 設定現金餘額
+  setCashBalance: (data) =>
+    request.put('/account/cash-balance', data),
 
   // ========== 交易設定相關 ==========
   // 取得交易設定

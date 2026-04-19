@@ -53,10 +53,14 @@ model User {
   googleId       String    @unique @db.VarChar(255)
   accessToken    String?   @db.Text
   refreshToken   String?   @db.Text
+  brokerFeeDiscount Decimal? @db.Decimal(3, 2)  // 券商手續費折扣（例：0.60 = 六折，null = 不折扣）
+  cashAdjustment Int      @default(0)          // 現金補正值（設定現金餘額時由系統計算）
   createdAt      DateTime  @default(now()) @db.Timestamp(6)
   updatedAt      DateTime  @updatedAt @db.Timestamp(6)
   trades         Trade[]
   strategies     Strategy[]
+  accountTransactions AccountTransaction[]
+  balanceSnapshots    BalanceSnapshot[]
 
   @@index([googleId])
   @@index([email])
@@ -114,6 +118,8 @@ model PositionAdjustment {
   shares    Int
   price     Decimal  @db.Decimal(18, 2)
   fee       Int      @default(0)
+  tax       Int      @default(0)
+  isDayTrade Boolean @default(false)
   stopLoss  Decimal? @db.Decimal(18, 2)
   note      String?  @db.Text
   timestamp DateTime @db.Timestamp(6)
@@ -209,4 +215,34 @@ model StrategyPerformance {
   @@index([strategyId, isCurrentSnapshot])
   @@index([strategyId, snapshotDate])
   @@index([strategyId, periodStart])
+}
+
+model AccountTransaction {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  userId    String   @db.VarChar(36)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @db.VarChar(20)     // 'deposit' | 'withdraw'
+  amount    Int                           // 金額（正整數）
+  balance   Int                           // 本筆交易後的餘額
+  method    String?  @db.VarChar(50)     // 入金方式
+  notes     String?  @db.Text
+  date      DateTime @db.Timestamp(6)    // 用戶指定的交易日期
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @db.Timestamp(6)
+
+  @@index([userId, date])
+}
+
+model BalanceSnapshot {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  userId        String   @db.VarChar(36)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date          DateTime @db.Date
+  cashBalance   Int                         // 現金餘額
+  positionValue Int      @default(0)        // 持倉市值
+  totalAssets   Int                         // 總資產 = cash + position
+  createdAt     DateTime @default(now()) @db.Timestamp(6)
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }

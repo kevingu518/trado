@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import { NotFoundError, AppError } from '../errors/index.js';
 import tradeService from './TradeService.js';
+import { calculateFee, calculateTax } from '../utils/feeCalculator.js';
 
 class PositionAdjustmentService {
   /**
@@ -84,6 +85,44 @@ class PositionAdjustmentService {
     // 處理 timestamp 格式
     const processedData = this.processTimestamp(data);
 
+    // 自動計算手續費（如果前端沒傳或傳 null）
+    if (processedData.fee == null) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { brokerFeeDiscount: true },
+      });
+      const discount = user?.brokerFeeDiscount ? Number(user.brokerFeeDiscount) : 1.0;
+      processedData.fee = calculateFee(processedData.shares, processedData.price, discount);
+    }
+
+    // 賣出時自動計算證交稅
+    if (processedData.action === 'sell') {
+      // 自動偵測當沖：同 trade 同天有 buy
+      if (processedData.isDayTrade == null && processedData.timestamp) {
+        const sellDate = new Date(processedData.timestamp).toISOString().slice(0, 10);
+        const sameDayBuy = await prisma.positionAdjustment.findFirst({
+          where: {
+            tradeId,
+            action: 'buy',
+            deletedAt: null,
+            timestamp: {
+              gte: new Date(sellDate + 'T00:00:00.000Z'),
+              lte: new Date(sellDate + 'T23:59:59.999Z'),
+            },
+          },
+        });
+        processedData.isDayTrade = sameDayBuy !== null;
+      }
+
+      if (processedData.tax == null) {
+        processedData.tax = calculateTax(
+          processedData.shares,
+          processedData.price,
+          processedData.isDayTrade || false,
+        );
+      }
+    }
+
     const adjustment = await prisma.positionAdjustment.create({
       data: {
         ...processedData,
@@ -128,6 +167,36 @@ class PositionAdjustmentService {
 
     // 處理 timestamp 格式
     const processedData = this.processTimestamp(data);
+
+    // 判斷 shares 或 price 是否有變更
+    const sharesChanged = processedData.shares != null && processedData.shares !== adjustment.shares;
+    const priceChanged = processedData.price != null && String(processedData.price) !== String(adjustment.price);
+    const amountChanged = sharesChanged || priceChanged;
+
+    // 如果金額有變且前端沒傳 fee → 重新計算手續費
+    if (amountChanged && processedData.fee == null) {
+      const trade = await prisma.trade.findUnique({
+        where: { id: adjustment.tradeId },
+        select: { userId: true },
+      });
+      const user = await prisma.user.findUnique({
+        where: { id: trade.userId },
+        select: { brokerFeeDiscount: true },
+      });
+      const discount = user?.brokerFeeDiscount ? Number(user.brokerFeeDiscount) : 1.0;
+      const newShares = processedData.shares ?? adjustment.shares;
+      const newPrice = processedData.price ?? adjustment.price;
+      processedData.fee = calculateFee(newShares, newPrice, discount);
+    }
+
+    // 如果是賣出且金額有變且前端沒傳 tax → 重新計算證交稅
+    const action = processedData.action ?? adjustment.action;
+    if (action === 'sell' && amountChanged && processedData.tax == null) {
+      const newShares = processedData.shares ?? adjustment.shares;
+      const newPrice = processedData.price ?? adjustment.price;
+      const isDayTrade = processedData.isDayTrade ?? adjustment.isDayTrade;
+      processedData.tax = calculateTax(newShares, newPrice, isDayTrade);
+    }
 
     const updatedAdjustment = await prisma.positionAdjustment.update({
       where: { id: positionId },

@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
+import { message } from 'antd'
+import to from 'await-to-js'
 import { dashboardService } from '../services/dashboard'
 
 // ── helpers ──────────────────────────────────────────────
@@ -27,9 +29,13 @@ const buildWeeklyTradeCount = (trades) => {
 }
 
 const buildIndexDistribution = (trades) => {
+  // 過濾掉 marketIndex 為 null 的交易
+  const validTrades = trades.filter(t => t.marketIndex != null)
+  if (validTrades.length === 0) return []
+
   const binSize = 500
   const bins = {}
-  trades.forEach(t => {
+  validTrades.forEach(t => {
     const lower = Math.floor(t.marketIndex / binSize) * binSize
     const label = `${lower.toLocaleString()}~${(lower + binSize).toLocaleString()}`
     if (!bins[lower]) bins[lower] = { range: label, 做多: 0, 做空: 0, sort: lower }
@@ -41,7 +47,7 @@ const buildIndexDistribution = (trades) => {
 
 // ── hook ─────────────────────────────────────────────────
 export const useDashboard = () => {
-  const [periodRange, setPeriodRange] = useState('q1')
+  const [periodRange, setPeriodRange] = useState('month')
   const [account, setAccount]       = useState(null)
   const [performance, setPerformance] = useState(null)
   const [strategies, setStrategies]   = useState([])
@@ -51,18 +57,17 @@ export const useDashboard = () => {
 
   const fetchData = useCallback(async (period) => {
     setLoading(true)
-    const [acct, perf, strats, tds, disc] = await Promise.all([
-      dashboardService.fetchAccount(),
-      dashboardService.fetchPerformance(period),
-      dashboardService.fetchStrategies(period),
-      dashboardService.fetchTrades(period),
-      dashboardService.fetchDiscipline(period),
-    ])
-    setAccount(acct)
-    setPerformance(perf)
-    setStrategies(strats)
-    setTrades(tds)
-    setDiscipline(disc)
+    const [err, data] = await to(dashboardService.fetchDashboard(period))
+    if (err) {
+      message.error(err.msg || '載入儀表板失敗')
+      setLoading(false)
+      return
+    }
+    setAccount(data.account)
+    setPerformance(data.performance)
+    setStrategies(data.strategies)
+    setTrades(data.trades)
+    setDiscipline(data.discipline)
     setLoading(false)
   }, [])
 
@@ -71,7 +76,11 @@ export const useDashboard = () => {
   }, [periodRange, fetchData])
 
   // ── derived data ────────────────────────────────────────
-  const perfDiff = performance ? performance.myReturn - performance.marketReturn : 0
+  const perfDiff = performance
+    ? (performance.myReturn != null && performance.marketReturn != null
+        ? performance.myReturn - performance.marketReturn
+        : null)
+    : null
 
   // ── 策略排序 ──────────────────────────────────────────
   const sortedStrategies = useMemo(
