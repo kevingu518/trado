@@ -16,25 +16,32 @@
     border-color: rgba(42, 82, 152, 0.5) !important; // 使用 login 頁面主色的半透明
   }
   
-  // 重置按鈕樣式（只保留必要的樣式，顏色交給 Ant Design）
+  // 清除按鈕樣式（和 filter 視覺一致的 chip 樣式）
   .reset-filter-btn {
-    border-radius: 4px !important;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-secondary);
     background: rgba(255, 255, 255, 0.9);
-    transition: all 0.2s;
-    
-    &:hover {
-      background: rgba(255, 255, 255, 1);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(42, 82, 152, 0.15);
+    box-shadow: none;
+    transition: color 0.2s, border-color 0.2s;
+
+    &:hover,
+    &:focus {
+      color: var(--sidebar-active) !important;
+      border-color: var(--sidebar-active) !important;
+      background: rgba(255, 255, 255, 0.9) !important;
+      box-shadow: none !important;
+      transform: none !important;
     }
-    
+
     &:active {
-      background: rgba(255, 255, 255, 0.95);
-    }
-    
-    .anticon {
-      font-size: 12px;
-      margin-right: 4px;
+      color: var(--sidebar-active) !important;
+      border-color: var(--sidebar-active) !important;
+      background: rgba(255, 255, 255, 0.9) !important;
+      box-shadow: none !important;
+      transform: none !important;
     }
   }
   

@@ -47,10 +47,10 @@ const Transactions = () => {
   const [expandedRowKeys, setExpandedRowKeys] = useState([])
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 10,
+    pageSize: 50,
     total: 0,
     showSizeChanger: true,
-    pageSizeOptions: [10, 20, 50],
+    pageSizeOptions: [10, 20, 50, 100],
     showTotal: (total, range) =>
       `第 ${range[0]}-${range[1]} 項，共 ${total} 項`,
   })
@@ -961,12 +961,10 @@ const Transactions = () => {
               <Option value="open">持倉中</Option>
               <Option value="completed">已清倉</Option>
             </Select>
-            {/* 重置按鈕 */}
+            {/* 清除按鈕 */}
             {(dateRange || symbolInput || strategyFilter || directionFilter || statusFilter !== 'all') && (
               <Button
-                size="small"
-                className='rounded-sm reset-filter-btn'
-                icon={<ClearOutlined />}
+                className='reset-filter-btn'
                 onClick={() => {
                   setDateRange(null)
                   setSymbolInput('')
@@ -975,14 +973,8 @@ const Transactions = () => {
                   setDirectionFilter(null)
                   setStatusFilter('all')
                 }}
-                style={{ 
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
               >
-                重置
+                清除
               </Button>
             )}
           </div>
