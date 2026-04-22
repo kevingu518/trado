@@ -100,6 +100,7 @@ export const tradeDTO = {
       // 持倉統計（以後端欄位為主）
       totalShares: apiTrade.totalShares || 0,
       avgPrice: apiTrade.avgPrice ? parseFloat(apiTrade.avgPrice) : 0,
+      avgSellPrice: apiTrade.avgSellPrice != null ? parseFloat(apiTrade.avgSellPrice) : null,
       totalValue: apiTrade.totalValue ? parseFloat(apiTrade.totalValue) : 0,
       positionNote: apiTrade.positionNote || '',
       

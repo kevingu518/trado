@@ -171,7 +171,7 @@ const Transactions = () => {
         direction: tradeData.direction, // "long" 或 "short"
         status: 'open', // 新增時預設為 open
         followedDiscipline: 'pending', // 新增時預設為 pending
-        strategy: tradeData.strategy || null,
+        strategyId: tradeData.strategyId || null,
         createdAt: tradeData.createdAt, // 已經是 YYYY-MM-DD 格式
         closedAt: tradeData.closedAt || null,
         note: tradeData.note || null,
@@ -213,9 +213,13 @@ const Transactions = () => {
     try {
       // 判斷是編輯模式還是新增模式
       if (typeof tradeIdOrData === 'string' || typeof tradeIdOrData === 'number') {
-        // 編輯模式：第一個參數是 tradeId
-        message.warning('目前不支援從此處編輯交易基本資訊，請使用其他方式更新')
-        return
+        // 編輯模式：第一個參數是 tradeId，第二個是要更新的欄位
+        const { err } = await updateTrade(tradeIdOrData, tradeDataOrPosition)
+        if (err) {
+          message.error(err.msg || err.message || '更新交易記錄失敗')
+          return
+        }
+        message.success('交易記錄已更新')
       } else {
         // 新增模式：第一個參數是 tradeData，第二個是 positionData（可選）
         await handleAddTrade(tradeIdOrData, tradeDataOrPosition)

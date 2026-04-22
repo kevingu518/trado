@@ -457,16 +457,15 @@ const TradeDrawer = ({
                       {tradeData.status === 'open' ? '持倉中' : '已完成'}
                     </Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label="持倉日">
-                    {(() => {
-                      const start = tradeData.createdAt
-                        ? dayjs(tradeData.createdAt).format('YYYY/MM/DD')
-                        : '-'
-                      const end = tradeData.closedAt
-                        ? dayjs(tradeData.closedAt).format('YYYY/MM/DD')
-                        : ''
-                      return `${start} ~ ${end}`
-                    })()}
+                  <Descriptions.Item label="開倉日">
+                    {tradeData.createdAt
+                      ? dayjs(tradeData.createdAt).format('YYYY/MM/DD')
+                      : '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="平倉日">
+                    {tradeData.closedAt
+                      ? dayjs(tradeData.closedAt).format('YYYY/MM/DD')
+                      : '-'}
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
@@ -482,8 +481,13 @@ const TradeDrawer = ({
                   <Descriptions.Item label="建倉次數">
                     {tradeData.entryCount ?? positionAdjustments.length ?? 0}
                   </Descriptions.Item>
-                  <Descriptions.Item label="平均價格">
+                  <Descriptions.Item label="平均買價">
                     ${tradeData.avgPrice ? parseFloat(tradeData.avgPrice).toFixed(2) : '0.00'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="平均賣價">
+                    {tradeData.avgSellPrice != null
+                      ? `$${parseFloat(tradeData.avgSellPrice).toFixed(2)}`
+                      : '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="總價值">
                     ${tradeData.totalValue ? parseFloat(tradeData.totalValue).toFixed(2) : '0.00'}
@@ -524,12 +528,20 @@ const TradeDrawer = ({
                     {tradeData.totalTax ? `${tradeData.totalTax.toLocaleString()} 元` : '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="淨損益">
-                    <span style={{ 
+                    <span style={{
                       color: pnlColor(tradeData.netProfitLoss),
                       fontWeight: 'bold'
                     }}>
                       {tradeData.netProfitLoss > 0 ? '+' : ''}{tradeData.netProfitLoss?.toLocaleString() || 0} 元
                     </span>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="總成本">
+                    {(() => {
+                      const totalBuyCost = (tradeData.positionAdjustments || [])
+                        .filter(p => p.action === 'buy')
+                        .reduce((sum, p) => sum + (p.shares || 0) * (p.price || 0), 0)
+                      return totalBuyCost > 0 ? `${Math.round(totalBuyCost).toLocaleString()} 元` : '-'
+                    })()}
                   </Descriptions.Item>
                 </Descriptions>
               </Card>

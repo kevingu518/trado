@@ -209,13 +209,13 @@ class TradeService {
       throw new AppError('Access denied', 403);
     }
 
-    // 只允許更新檢討相關欄位
     const allowedFields = [
       'reviewNotes',
       'errorCategory',
       'emotion',
       'followedDiscipline',
       'selfRating',
+      'strategyId',
     ];
 
     const updateData = {};
@@ -225,12 +225,22 @@ class TradeService {
       }
     }
 
-    // 如果沒有可更新的欄位，拋出錯誤
     if (Object.keys(updateData).length === 0) {
       throw new AppError(
-        'No valid fields to update. Only review-related fields are allowed: reviewNotes, errorCategory, emotion, followedDiscipline, selfRating',
+        'No valid fields to update. Allowed: reviewNotes, errorCategory, emotion, followedDiscipline, selfRating, strategyId',
         400
       );
+    }
+
+    // 驗證 strategyId 是否存在，不存在則設為 null（避免外鍵約束錯誤）
+    if (updateData.strategyId) {
+      const strategy = await prisma.strategy.findUnique({
+        where: { id: updateData.strategyId },
+        select: { id: true },
+      });
+      if (!strategy) {
+        updateData.strategyId = null;
+      }
     }
 
     return await prisma.trade.update({
@@ -238,6 +248,9 @@ class TradeService {
       data: updateData,
       include: {
         positionAdjustments: true,
+        strategy: {
+          select: { id: true, name: true, category: true },
+        },
       },
     });
   }
@@ -294,15 +307,17 @@ class TradeService {
         data: {
           totalShares: null,
           avgPrice: null,
+          avgSellPrice: null,
           totalValue: null,
           totalFee: null,
           entryCount: 0,  // 沒有 adjustments 時，entryCount 應該是 0
           holdingDuration: null,
         },
       });
-      return { 
-        totalShares: null, 
-        avgPrice: null, 
+      return {
+        totalShares: null,
+        avgPrice: null,
+        avgSellPrice: null,
         totalValue: null,
         totalFee: null,
         entryCount: 0,  // 沒有 adjustments 時，entryCount 應該是 0
@@ -317,6 +332,8 @@ class TradeService {
     let totalTax = 0; // 總證交稅
     let totalBuyCost = 0; // 買入總成本（不含手續費）
     let totalSellRevenue = 0; // 賣出總收入（不含手續費）
+    let totalSellShares = 0; // 賣出總股數
+    let totalSellValue = 0; // 賣出成交總額（股數 × 價格）
 
     for (const adj of adjustments) {
       const shares = adj.shares;
@@ -334,6 +351,8 @@ class TradeService {
       } else if (adj.action === 'sell') {
         // 賣出：減少股數，成本按當前平均成本計算
         totalSellRevenue += shares * price;
+        totalSellShares += shares;
+        totalSellValue += shares * price;
         if (totalShares > 0) {
           const avgCostPerShare = totalCost / totalShares;
           const sharesToSell = Math.min(shares, totalShares);
@@ -344,8 +363,13 @@ class TradeService {
     }
 
     // 計算平均價格（保留小數點後2位）
-    const avgPrice = totalShares > 0 
-      ? parseFloat((totalCost / totalShares).toFixed(2)) 
+    const avgPrice = totalShares > 0
+      ? parseFloat((totalCost / totalShares).toFixed(2))
+      : null;
+
+    // 計算平均賣價（加權平均，不含手續費/稅）
+    const avgSellPrice = totalSellShares > 0
+      ? parseFloat((totalSellValue / totalSellShares).toFixed(2))
       : null;
 
     // 計算總價值（總股數 * 平均價格）
@@ -400,6 +424,7 @@ class TradeService {
     const updateData = {
       totalShares: totalShares > 0 ? totalShares : null,
       avgPrice: avgPrice ? avgPrice : null,
+      avgSellPrice,
       totalValue: totalValue ? totalValue : null,
       totalFee: totalFee > 0 ? totalFee : null,
       totalTax: totalTax > 0 ? totalTax : null,
@@ -440,6 +465,7 @@ class TradeService {
     return {
       totalShares: totalShares > 0 ? totalShares : null,
       avgPrice,
+      avgSellPrice,
       totalValue,
       totalFee: totalFee > 0 ? totalFee : null,
       totalTax: totalTax > 0 ? totalTax : null,

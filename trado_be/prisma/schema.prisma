@@ -78,6 +78,7 @@ model Trade {
   // [持倉統計]
   totalShares         Int?
   avgPrice            Decimal?             @db.Decimal(18, 2)
+  avgSellPrice        Decimal?             @db.Decimal(18, 2)
   totalValue          Decimal?             @db.Decimal(18, 2)
   positionNote        String?             @db.Text
   entryCount          Int?                 // 建倉次數

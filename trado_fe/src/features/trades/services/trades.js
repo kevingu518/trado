@@ -69,22 +69,20 @@ export const tradesService = {
    * @returns {Object} 轉換後的交易資料
    */
   async editTrade(tradeId, payload) {
-    // 只保留檢討相關的欄位
-    const reviewPayload = {}
-    if (payload.reviewNotes !== undefined) reviewPayload.reviewNotes = payload.reviewNotes
-    if (payload.errorCategory !== undefined) reviewPayload.errorCategory = payload.errorCategory
-    if (payload.emotion !== undefined) reviewPayload.emotion = payload.emotion
+    const apiPayload = {}
+    if (payload.reviewNotes !== undefined) apiPayload.reviewNotes = payload.reviewNotes
+    if (payload.errorCategory !== undefined) apiPayload.errorCategory = payload.errorCategory
+    if (payload.emotion !== undefined) apiPayload.emotion = payload.emotion
     if (payload.followedDiscipline !== undefined) {
       // 轉換 followedDiscipline：boolean -> 'yes'/'no'
-      reviewPayload.followedDiscipline = payload.followedDiscipline === true || payload.followedDiscipline === 'yes' ? 'yes' : 
-                                         payload.followedDiscipline === false || payload.followedDiscipline === 'no' ? 'no' : 
-                                         payload.followedDiscipline
+      apiPayload.followedDiscipline = payload.followedDiscipline === true || payload.followedDiscipline === 'yes' ? 'yes' :
+                                      payload.followedDiscipline === false || payload.followedDiscipline === 'no' ? 'no' :
+                                      payload.followedDiscipline
     }
-    if (payload.selfRating !== undefined) reviewPayload.selfRating = payload.selfRating
+    if (payload.selfRating !== undefined) apiPayload.selfRating = payload.selfRating
+    if (payload.strategyId !== undefined) apiPayload.strategyId = payload.strategyId
 
-    // 直接發送檢討相關欄位，不經過 DTO 轉換（因為 DTO 會嘗試轉換其他欄位）
-    const apiResponse = await updateTradeApi(tradeId, reviewPayload)
-    // 轉換回前端格式
+    const apiResponse = await updateTradeApi(tradeId, apiPayload)
     return tradeDTO.toFrontend(apiResponse)
   },
 

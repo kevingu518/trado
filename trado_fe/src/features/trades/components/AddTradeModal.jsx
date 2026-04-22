@@ -84,34 +84,21 @@ const AddTradeModal = ({
         ? await form.validateFields().catch(() => form.getFieldsValue()) // 編輯模式：即使驗證失敗也取得表單值
         : await form.validateFields() // 新增模式：嚴格驗證
 
-      // 處理策略欄位：如果選擇的是策略 ID（數字），使用 strategyId；如果是 'none'，設為 null
-      let strategyValue = null
-      let strategyIdValue = null
-      
-      if (values.strategy && values.strategy !== 'none') {
-        if (typeof values.strategy === 'number') {
-          // 如果是數字，當作 strategyId
-          strategyIdValue = values.strategy
-        } else {
-          // 如果是字符串，可能是策略名稱（向後兼容）
-          strategyValue = values.strategy
-        }
-      }
+      // 策略 id 是 UUID（字串）；'none' 代表清除策略
+      const strategyIdValue = values.strategy && values.strategy !== 'none' ? values.strategy : null
 
-      // 編輯模式：只發送有值的欄位
+      // 編輯模式：送出所有已填欄位（包含 strategyId: null 以支援「清除策略」）
       const tradeData = isEditMode
         ? {
             ...(values.symbol && { symbol: values.symbol }),
             ...(values.direction && { direction: values.direction }),
-            ...(strategyIdValue !== null && { strategyId: strategyIdValue }),
-            ...(strategyValue !== null && { strategy: strategyValue }),
+            ...(values.strategy !== undefined && { strategyId: strategyIdValue }),
             ...(values.createdAt && { createdAt: values.createdAt.format('YYYY-MM-DD') }),
           }
         : {
             symbol: values.symbol,
             direction: values.direction,
             strategyId: strategyIdValue,
-            strategy: strategyValue,
             createdAt: values.createdAt ? values.createdAt.format('YYYY-MM-DD') : null,
           }
 
