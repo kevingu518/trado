@@ -1,12 +1,35 @@
-import React, { useState } from 'react'
-import { Card, Button, Space, Tag, Switch, message, Empty, Spin, Row, Col, Tooltip } from 'antd'
-import { PlusOutlined, EyeOutlined } from '@ant-design/icons'
+import React, { useState, useMemo } from 'react'
+import { Card, Button, Tag, Switch, message, Empty, Spin, Row, Col, Tooltip, Select, Segmented } from 'antd'
+import { PlusOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons'
 import { to } from 'await-to-js'
 import { formatDate } from '@/utils/dateHelper'
+import { useTheme } from '@/contexts/ThemeContext'
 import { useStrategies } from '../hooks/useStrategies'
 import AddStrategyDrawer from '../components/AddStrategyModal'
 import StrategyDrawer from '../components/StrategyDrawer'
 import '../styles/index.scss'
+
+const { Option } = Select
+
+const CATEGORY_MAP = {
+  'TREND_FOLLOWING': { label: '趨勢跟隨', color: 'blue' },
+  'CONTRARIAN': { label: '逆勢策略', color: 'green' },
+  'DAY_TRADING': { label: '當沖交易', color: 'orange' },
+  'DIVIDEND_INVESTING': { label: '股息投資', color: 'purple' },
+  // 保留舊的 type 對應（向後兼容）
+  'trend': { label: '趨勢策略', color: 'blue' },
+  'mean-reversion': { label: '均值回歸', color: 'green' },
+  'arbitrage': { label: '套利策略', color: 'orange' },
+  'momentum': { label: '動量策略', color: 'purple' },
+  'other': { label: '其他', color: 'default' },
+}
+
+const NEW_CATEGORY_KEYS = ['TREND_FOLLOWING', 'CONTRARIAN', 'DAY_TRADING', 'DIVIDEND_INVESTING']
+
+const CATEGORY_OPTIONS = NEW_CATEGORY_KEYS.map((key) => ({
+  value: key,
+  label: CATEGORY_MAP[key].label,
+}))
 
 const Strategies = () => {
   // -------------------------   variables   ----------------------------
@@ -15,6 +38,12 @@ const Strategies = () => {
   const [editingStrategy, setEditingStrategy] = useState(null)
   const [selectedStrategy, setSelectedStrategy] = useState(null)
 
+  // filter / sort state
+  const [categoryFilter, setCategoryFilter] = useState(null)
+  const [activeFilter, setActiveFilter] = useState('all') // all | active | inactive
+  const [sortBy, setSortBy] = useState('createdAt-desc')
+
+  const { theme } = useTheme()
   const { data, loading, error, refetch, createStrategy, creating, updateStrategy, updating, deleteStrategy, isAtLimit, strategyCount, maxStrategies } = useStrategies()
 
   // -------------------------   functions   ----------------------------
@@ -85,46 +114,131 @@ const Strategies = () => {
     setDrawerVisible(false)
   }
 
-  const categoryMap = {
-    'TREND_FOLLOWING': { label: '趨勢跟隨', color: 'blue' },
-    'CONTRARIAN': { label: '逆勢策略', color: 'green' },
-    'DAY_TRADING': { label: '當沖交易', color: 'orange' },
-    'DIVIDEND_INVESTING': { label: '股息投資', color: 'purple' },
-    // 保留舊的 type 對應（向後兼容）
-    'trend': { label: '趨勢策略', color: 'blue' },
-    'mean-reversion': { label: '均值回歸', color: 'green' },
-    'arbitrage': { label: '套利策略', color: 'orange' },
-    'momentum': { label: '動量策略', color: 'purple' },
-    'other': { label: '其他', color: 'default' },
-  }
-
   // -------------------------   render   ----------------------------
-  const strategiesList = data?.list || []
+  const strategiesList = useMemo(() => data?.list || [], [data])
+
+  // 頁面級彙總(所有策略,不受 filter 影響)
+  const summary = useMemo(() => {
+    const total = strategiesList.length
+    const activeCount = strategiesList.filter((s) => s.isActive).length
+    const totalTrades = strategiesList.reduce((sum, s) => sum + (s.stats?.totalTrades ?? 0), 0)
+    const weightedWinRate = (() => {
+      const weighted = strategiesList.reduce(
+        (acc, s) => {
+          const trades = s.stats?.totalTrades ?? 0
+          const winRate = s.stats?.winRate ?? 0
+          if (!trades) return acc
+          acc.weightSum += trades
+          acc.rateSum += winRate * trades
+          return acc
+        },
+        { weightSum: 0, rateSum: 0 }
+      )
+      return weighted.weightSum > 0 ? weighted.rateSum / weighted.weightSum : null
+    })()
+    return { total, activeCount, totalTrades, weightedWinRate }
+  }, [strategiesList])
+
+  // 過濾 + 排序(客戶端)
+  const displayList = useMemo(() => {
+    let list = [...strategiesList]
+    if (categoryFilter) {
+      list = list.filter((s) => (s.category || s.type) === categoryFilter)
+    }
+    if (activeFilter === 'active') list = list.filter((s) => s.isActive)
+    if (activeFilter === 'inactive') list = list.filter((s) => !s.isActive)
+
+    const [key, order] = sortBy.split('-')
+    const dir = order === 'asc' ? 1 : -1
+    list.sort((a, b) => {
+      let va
+      let vb
+      if (key === 'createdAt') {
+        va = new Date(a.createdAt || 0).getTime()
+        vb = new Date(b.createdAt || 0).getTime()
+      } else if (key === 'winRate') {
+        va = a.stats?.winRate ?? 0
+        vb = b.stats?.winRate ?? 0
+      } else if (key === 'totalTrades') {
+        va = a.stats?.totalTrades ?? 0
+        vb = b.stats?.totalTrades ?? 0
+      } else {
+        return 0
+      }
+      return (va - vb) * dir
+    })
+    return list
+  }, [strategiesList, categoryFilter, activeFilter, sortBy])
+
+  const hasFilters = categoryFilter !== null || activeFilter !== 'all' || sortBy !== 'createdAt-desc'
+  const handleResetFilters = () => {
+    setCategoryFilter(null)
+    setActiveFilter('all')
+    setSortBy('createdAt-desc')
+  }
 
   return (
     <div className="Strategies">
-      {/* 標題區 */}
-      <div className="card h-full p-none overflow-hidden" style={{ position: 'relative', padding: '8px 12px' }}>
-        <div className="useBetween">
-          <div>
-            <span className='text-title font-bold font-serif'>策略管理</span>
-          </div>
-          <Tooltip title={isAtLimit ? `策略數量已達上限 (${maxStrategies})` : ''}>
-            <span className="strategy-count-hint text-hint" style={{ marginRight: 8 }}>
-              {strategyCount} / {maxStrategies}
-            </span>
-            <Button
-              type="primary"
-              className='rounded-sm px-lg'
-              icon={<PlusOutlined />}
-              onClick={handleOpenAddModal}
-              size="middle"
-              disabled={isAtLimit}
-            >
-              新增策略
-            </Button>
-          </Tooltip>
+      {/* 標題 + 摘要（單列） */}
+      <div className="Strategies-header">
+        <span className='text-title font-bold font-serif Strategies-header-title'>策略管理</span>
+        <div className="Strategies-header-summary">
+          <span>策略 <b>{summary.total}</b><span className="Strategies-stat-suffix">/{maxStrategies}</span></span>
+          <span className="dot">·</span>
+          <span>啟用 <b>{summary.activeCount}</b></span>
         </div>
+      </div>
+
+      {/* filter toolbar */}
+      <div className="Strategies-toolbar">
+        <div className="Strategies-toolbar-filters">
+          <Select
+            className="rounded-sm"
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            placeholder="分類"
+            allowClear
+            style={{ width: 140 }}
+          >
+            {CATEGORY_OPTIONS.map((opt) => (
+              <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+            ))}
+          </Select>
+          <Segmented
+            className="rounded-sm"
+            value={activeFilter}
+            onChange={setActiveFilter}
+            options={[
+              { label: '全部', value: 'all' },
+              { label: '啟用中', value: 'active' },
+              { label: '停用中', value: 'inactive' },
+            ]}
+          />
+          <Select
+            className="rounded-sm"
+            value={sortBy}
+            onChange={setSortBy}
+            style={{ width: 160 }}
+          >
+            <Option value="createdAt-desc">最新建立</Option>
+            <Option value="createdAt-asc">最早建立</Option>
+            <Option value="winRate-desc">最高勝率</Option>
+            <Option value="totalTrades-desc">最多交易數</Option>
+          </Select>
+          {hasFilters && (
+            <Tooltip title="清除篩選">
+              <Button
+                type="text"
+                icon={<ReloadOutlined />}
+                onClick={handleResetFilters}
+                className="reset-filter-btn"
+              />
+            </Tooltip>
+          )}
+        </div>
+        <span className="Strategies-toolbar-count">
+          顯示 <b>{displayList.length}</b> / {strategiesList.length}
+        </span>
       </div>
 
       {/* 策略列表 */}
@@ -140,10 +254,14 @@ const Strategies = () => {
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <Empty description="尚無策略，點擊「新增策略」開始建立" />
         </div>
+      ) : displayList.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <Empty description="沒有符合條件的策略，試試調整篩選" />
+        </div>
       ) : (
         <Row gutter={[16, 16]} className="Strategies-list">
-          {strategiesList.map((strategy) => (
-            <Col xs={24} sm={12} md={12} lg={6} key={strategy.id}>
+          {displayList.map((strategy) => (
+            <Col xs={24} sm={12} md={12} lg={8} xl={6} key={strategy.id}>
               <Card
                 className={`Strategies-card ${!strategy.isActive ? 'inactive' : ''}`}
                 hoverable
@@ -176,8 +294,8 @@ const Strategies = () => {
                     <h3 className="Strategies-card-title">{strategy.name}</h3>
                     <Tag 
                       className="mr-none"
-                      color={categoryMap[strategy.category || strategy.type]?.color || 'default'}>
-                      {categoryMap[strategy.category || strategy.type]?.label || strategy.category || strategy.type}
+                      color={CATEGORY_MAP[strategy.category || strategy.type]?.color || 'default'}>
+                      {CATEGORY_MAP[strategy.category || strategy.type]?.label || strategy.category || strategy.type}
                     </Tag>
                   </div>
                   {/* start date */}
@@ -217,6 +335,27 @@ const Strategies = () => {
               </Card>
             </Col>
           ))}
+          {!isAtLimit && (
+            <Col xs={24} sm={12} md={12} lg={8} xl={6}>
+              <div
+                className="Strategies-ghost-card"
+                style={{ '--ghost-primary': theme.primary, '--ghost-primary-dark': theme.primaryDark }}
+                onClick={handleOpenAddModal}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleOpenAddModal()
+                  }
+                }}
+              >
+                <PlusOutlined className="Strategies-ghost-icon" />
+                <span className="Strategies-ghost-label">新增策略</span>
+                <span className="Strategies-ghost-hint">還可建立 {maxStrategies - strategyCount} 個</span>
+              </div>
+            </Col>
+          )}
         </Row>
       )}
 

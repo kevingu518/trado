@@ -45,12 +45,13 @@ export const strategyDTO = {
       createdAt: formatDate(apiStrategy.createdAt),
       updatedAt: formatDate(apiStrategy.updatedAt),
       // 統計資料（可選，如果後端有提供）
+      // 注意：後端 winRate / maxDrawdown 以百分比儲存 (0~100)，前端統一轉為 0~1 小數，顯示時再乘 100
       stats: apiStrategy.stats ? {
         totalProfitLoss: apiStrategy.stats.totalProfitLoss !== null && apiStrategy.stats.totalProfitLoss !== undefined ? parseFloat(apiStrategy.stats.totalProfitLoss) : null,
-        winRate: apiStrategy.stats.winRate !== null && apiStrategy.stats.winRate !== undefined ? parseFloat(apiStrategy.stats.winRate) : null,
+        winRate: apiStrategy.stats.winRate !== null && apiStrategy.stats.winRate !== undefined ? parseFloat(apiStrategy.stats.winRate) / 100 : null,
         riskRewardRatio: apiStrategy.stats.riskRewardRatio !== null && apiStrategy.stats.riskRewardRatio !== undefined ? parseFloat(apiStrategy.stats.riskRewardRatio) : null,
         avgHoldingDuration: apiStrategy.stats.avgHoldingDuration !== null && apiStrategy.stats.avgHoldingDuration !== undefined ? parseFloat(apiStrategy.stats.avgHoldingDuration) : null,
-        maxDrawdown: apiStrategy.stats.maxDrawdown !== null && apiStrategy.stats.maxDrawdown !== undefined ? parseFloat(apiStrategy.stats.maxDrawdown) : null,
+        maxDrawdown: apiStrategy.stats.maxDrawdown !== null && apiStrategy.stats.maxDrawdown !== undefined ? parseFloat(apiStrategy.stats.maxDrawdown) / 100 : null,
         totalTrades: apiStrategy.stats.totalTrades || 0,
         winningTrades: apiStrategy.stats.winningTrades || 0,
         losingTrades: apiStrategy.stats.losingTrades || 0,

@@ -1,6 +1,9 @@
 import prisma from '../config/database.js';
 import { NotFoundError, AppError } from '../errors/index.js';
 
+// 每位使用者最多可建立的策略數（需與前端 strategy.config.js 同步）
+const MAX_STRATEGIES_PER_USER = 20;
+
 class StrategyService {
   async getAllStrategies(userId, options = {}) {
     const {
@@ -31,21 +34,43 @@ class StrategyService {
     const order = sortOrder.toLowerCase() === 'asc' ? 'asc' : 'desc';
     orderBy[sortField] = order;
 
-    // 並行查詢：取得資料和總數
+    // 並行查詢：取得資料和總數（列表同時帶入當前績效快照）
     const [strategies, total] = await Promise.all([
       prisma.strategy.findMany({
         where,
         orderBy,
         skip,
         take: limitNum,
+        include: {
+          performance: {
+            where: { isCurrentSnapshot: true },
+            take: 1,
+          },
+        },
       }),
       prisma.strategy.count({ where }),
     ]);
 
+    // 缺快照的策略先補一份（僅第一次載入會跑，之後都有快照）
+    await Promise.all(
+      strategies.map(async (s) => {
+        if (!s.performance || s.performance.length === 0) {
+          const perf = await this.calculateAndCreateSnapshot(s.id);
+          s.performance = [perf];
+        }
+      })
+    );
+
+    // 攤平 performance[0] 為 stats，方便前端使用
+    const strategiesWithStats = strategies.map((s) => {
+      const { performance, ...rest } = s;
+      return { ...rest, stats: performance?.[0] ?? null };
+    });
+
     const totalPages = Math.ceil(total / limitNum);
 
     return {
-      strategies,
+      strategies: strategiesWithStats,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -85,6 +110,15 @@ class StrategyService {
     if (data.category && !validCategories.includes(data.category)) {
       throw new AppError(
         `Category must be one of: ${validCategories.join(', ')}`,
+        400
+      );
+    }
+
+    // 檢查建立數量上限
+    const count = await prisma.strategy.count({ where: { userId } });
+    if (count >= MAX_STRATEGIES_PER_USER) {
+      throw new AppError(
+        `策略數量已達上限 (${MAX_STRATEGIES_PER_USER})，請先刪除不需要的策略`,
         400
       );
     }
