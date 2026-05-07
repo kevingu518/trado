@@ -20,6 +20,7 @@ import { to } from 'await-to-js';
 import { useUserInfo } from '../hooks/useUserInfo';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import { ShortcutListPopover } from '@/shortcuts';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 
 const items = [
@@ -186,6 +187,7 @@ const MainLayout = () => {
         
         {/* 底部選單 */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+          <ShortcutListPopover />
           <ThemeSwitcher />
           { userMenuContent() }
         </div>

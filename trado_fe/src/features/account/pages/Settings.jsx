@@ -1,9 +1,10 @@
 import React from 'react';
 import { Tabs, Card } from 'antd';
-import { UserOutlined, DollarOutlined, SettingOutlined } from '@ant-design/icons';
+import { UserOutlined, DollarOutlined, SettingOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import ProfileSettings from '../components/ProfileSettings';
 import BalanceManagement from '../components/BalanceManagement';
 import FeeSettings from '../components/FeeSettings';
+import ShortcutSettings from '../components/ShortcutSettings';
 
 const Settings = () => {
   const items = [
@@ -36,6 +37,16 @@ const Settings = () => {
         </span>
       ),
       children: <FeeSettings />,
+    },
+    {
+      key: '4',
+      label: (
+        <span className='flex items-center gap-sm'>
+          <ThunderboltOutlined />
+          快捷鍵
+        </span>
+      ),
+      children: <ShortcutSettings />,
     },
   ];
 

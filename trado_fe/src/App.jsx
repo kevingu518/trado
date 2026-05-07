@@ -19,12 +19,15 @@ import Dashboard from './features/dashboard/pages';
 import Settings from './features/account/pages/Settings';
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
+// Shortcuts
+import { ShortcutProvider } from './shortcuts';
 
 function App() {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <BrowserRouter>
+          <ShortcutProvider>
           <Routes>
             {/* 認證相關路由 - 公開路由 */}
             <Route path="/auth" element={<AuthLayout />}>
@@ -55,6 +58,7 @@ function App() {
             {/* 404 重定向 */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </ShortcutProvider>
         </BrowserRouter>
       </PersistGate>
     </Provider>

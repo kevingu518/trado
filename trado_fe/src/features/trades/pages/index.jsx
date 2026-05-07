@@ -14,6 +14,7 @@ import { to } from 'await-to-js'
 import { useTrades } from '../hooks/useTrades'
 import { tradesService } from '../services/trades'
 import { positionsService } from '../services/positions'
+import { useShortcut } from '@/shortcuts'
 
 import AddTradeModal from '../components/AddTradeModal'
 import AddPositionModal from '../components/AddPositionModal'
@@ -55,12 +56,38 @@ const Transactions = () => {
       `第 ${range[0]}-${range[1]} 項，共 ${total} 項`,
   })
 
+  // 股號輸入框 ref（供「/」快捷鍵 focus）
+  const symbolInputRef = useRef(null)
+
   // 搜尋股票：按 Enter 或清空時才送 API
   const handleSymbolSearch = () => {
     const val = symbolInput.length >= 2 ? symbolInput : null
     setSymbolFilter(val)
     setPagination(prev => ({ ...prev, current: 1 }))
   }
+
+  // 清除所有過濾條件（給「清除」按鈕與「r」快捷鍵共用）
+  const handleResetFilters = () => {
+    setDateRange(null)
+    setSymbolInput('')
+    setSymbolFilter(null)
+    setStrategyFilter(null)
+    setDirectionFilter(null)
+    setStatusFilter('all')
+  }
+
+  // 快捷鍵：n 開單 / / focus 股號搜尋 / r 清除過濾 / s 切換狀態
+  useShortcut('trades-new', () => handleAdd())
+  useShortcut('trades-search', () => symbolInputRef.current?.focus())
+  useShortcut('trades-reset', () => handleResetFilters())
+  useShortcut('trades-status-cycle', () => {
+    // 用 functional setState 讀最新值，避免閉包過期
+    setStatusFilter((prev) => {
+      const order = ['all', 'open', 'completed']
+      const idx = order.indexOf(prev)
+      return order[(idx + 1) % order.length]
+    })
+  })
 
   // -------------------------   hooks   ----------------------------
   // 使用 useTrades hook 取得交易資料
@@ -913,6 +940,7 @@ const Transactions = () => {
               style={{ width: 240 }}
             />
             <Input
+              ref={symbolInputRef}
               className={`rounded-sm ${symbolInput ? 'has-value' : ''}`}
               value={symbolInput}
               onChange={(e) => {
@@ -969,14 +997,7 @@ const Transactions = () => {
             {(dateRange || symbolInput || strategyFilter || directionFilter || statusFilter !== 'all') && (
               <Button
                 className='reset-filter-btn'
-                onClick={() => {
-                  setDateRange(null)
-                  setSymbolInput('')
-                  setSymbolFilter(null)
-                  setStrategyFilter(null)
-                  setDirectionFilter(null)
-                  setStatusFilter('all')
-                }}
+                onClick={handleResetFilters}
               >
                 清除
               </Button>

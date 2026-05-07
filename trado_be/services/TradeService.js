@@ -210,6 +210,9 @@ class TradeService {
     }
 
     const allowedFields = [
+      'symbol',
+      'direction',
+      'createdAt',
       'reviewNotes',
       'errorCategory',
       'emotion',
@@ -227,9 +230,23 @@ class TradeService {
 
     if (Object.keys(updateData).length === 0) {
       throw new AppError(
-        'No valid fields to update. Allowed: reviewNotes, errorCategory, emotion, followedDiscipline, selfRating, strategyId',
+        'No valid fields to update. Allowed: symbol, direction, createdAt, reviewNotes, errorCategory, emotion, followedDiscipline, selfRating, strategyId',
         400
       );
+    }
+
+    // 驗證 direction 必須是 'long' 或 'short'
+    if (updateData.direction && !['long', 'short'].includes(updateData.direction)) {
+      throw new AppError('Direction must be either "long" or "short"', 400);
+    }
+
+    // 處理 createdAt（YYYY-MM-DD 字串轉 Date）
+    if (updateData.createdAt) {
+      if (typeof updateData.createdAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(updateData.createdAt)) {
+        updateData.createdAt = new Date(updateData.createdAt + 'T00:00:00.000Z');
+      } else if (!(updateData.createdAt instanceof Date)) {
+        updateData.createdAt = new Date(updateData.createdAt);
+      }
     }
 
     // 驗證 strategyId 是否存在，不存在則設為 null（避免外鍵約束錯誤）
@@ -243,9 +260,20 @@ class TradeService {
       }
     }
 
-    return await prisma.trade.update({
+    const directionChanged = updateData.direction && updateData.direction !== trade.direction;
+
+    await prisma.trade.update({
       where: { id },
       data: updateData,
+    });
+
+    // direction 變更會影響 entryCount（多單算 buy、空單算 sell），重算 metrics
+    if (directionChanged) {
+      await this.calculateTradeMetrics(id);
+    }
+
+    return await prisma.trade.findUnique({
+      where: { id },
       include: {
         positionAdjustments: true,
         strategy: {

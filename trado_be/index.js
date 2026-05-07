@@ -20,6 +20,9 @@ const allowedOrigins = [
   'http://localhost:5173',
 ];
 
+// 開發環境允許區網 IP (192.168.x.x / 10.x.x.x / 172.16-31.x.x) 在 5173/3000
+const lanOriginRegex = /^http:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}):(5173|3000)$/;
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -27,7 +30,7 @@ app.use(
       if (!origin) {
         return callback(null, true);
       }
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || lanOriginRegex.test(origin)) {
         return callback(null, true);
       }
       return callback(new Error('Not allowed by CORS'));

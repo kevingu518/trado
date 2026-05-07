@@ -63,13 +63,16 @@ export const tradesService = {
   },
 
   /**
-   * 更新交易（僅用於更新檢討相關欄位）
+   * 更新交易
    * @param {string|number} tradeId 交易 ID
-   * @param {Object} payload 要更新的欄位（只接受檢討相關欄位：reviewNotes, errorCategory, emotion, followedDiscipline, selfRating）
+   * @param {Object} payload 要更新的欄位（接受：symbol, direction, createdAt, strategyId, reviewNotes, errorCategory, emotion, followedDiscipline, selfRating）
    * @returns {Object} 轉換後的交易資料
    */
   async editTrade(tradeId, payload) {
     const apiPayload = {}
+    if (payload.symbol !== undefined) apiPayload.symbol = payload.symbol
+    if (payload.direction !== undefined) apiPayload.direction = payload.direction
+    if (payload.createdAt !== undefined) apiPayload.createdAt = payload.createdAt
     if (payload.reviewNotes !== undefined) apiPayload.reviewNotes = payload.reviewNotes
     if (payload.errorCategory !== undefined) apiPayload.errorCategory = payload.errorCategory
     if (payload.emotion !== undefined) apiPayload.emotion = payload.emotion

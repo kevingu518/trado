@@ -25,6 +25,7 @@
     "lightweight-charts": "^4.1.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-hotkeys-hook": "^5.2.4",
     "react-icon": "^1.0.0",
     "react-icons": "^5.5.0",
     "react-perfect-scrollbar": "^1.5.8",
