@@ -64,6 +64,19 @@
       }
     }
   }
+
+  // 鍵盤導覽：焦點列以左側 accent 邊條 + 淺底色呈現
+  .ant-table-row.Transactions-row-focused {
+    > .ant-table-cell {
+      background-color: rgba(42, 82, 152, 0.06);
+    }
+    > .ant-table-cell:first-child {
+      box-shadow: inset 3px 0 0 var(--sidebar-active);
+    }
+    &:hover > .ant-table-cell {
+      background-color: rgba(42, 82, 152, 0.1) !important;
+    }
+  }
   .expandedRow{
     // 展開動畫效果 - 俐落穩定的高度展開
     animation: expandRowSlideDown 1.2s ease-out;

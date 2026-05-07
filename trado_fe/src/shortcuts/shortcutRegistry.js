@@ -13,6 +13,11 @@ export const SHORTCUT_REGISTRY = [
   { id: 'trades-search', keys: '/', display: '/', scope: SCOPE.TRADES, description: 'Focus 股號搜尋' },
   { id: 'trades-reset', keys: 'r', display: 'R', scope: SCOPE.TRADES, description: '清除所有過濾條件' },
   { id: 'trades-status-cycle', keys: 's', display: 'S', scope: SCOPE.TRADES, description: '切換交易狀態（全部 / 持倉中 / 已清倉）' },
+  { id: 'trades-row-up', keys: 'up', display: '↑', scope: SCOPE.TRADES, description: '焦點移到上一筆' },
+  { id: 'trades-row-down', keys: 'down', display: '↓', scope: SCOPE.TRADES, description: '焦點移到下一筆' },
+  { id: 'trades-row-first', keys: 'pageup', display: 'fn+↑', scope: SCOPE.TRADES, description: '焦點移到當前頁第一筆' },
+  { id: 'trades-row-last', keys: 'pagedown', display: 'fn+↓', scope: SCOPE.TRADES, description: '焦點移到當前頁最後一筆' },
+  { id: 'trades-row-open', keys: 'enter', display: 'Enter', scope: SCOPE.TRADES, description: '開啟焦點記錄的詳細抽屜' },
 ]
 
 export const REGISTRY_BY_ID = SHORTCUT_REGISTRY.reduce((acc, item) => {

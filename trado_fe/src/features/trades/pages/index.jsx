@@ -46,6 +46,8 @@ const Transactions = () => {
   const [editingTrade, setEditingTrade] = useState(null) // 正在編輯的交易資料
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [expandedRowKeys, setExpandedRowKeys] = useState([])
+  // 鍵盤導覽：被「框選」的列 key（null 表示尚未選中任何列）
+  const [focusedRowKey, setFocusedRowKey] = useState(null)
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 50,
@@ -156,6 +158,58 @@ const Transactions = () => {
       message.error(tradesError.msg || '取得交易資料失敗')
     }
   }, [tradesError])
+
+  // 換頁/換 filter 後，如果焦點 key 已不在當前資料中就清掉
+  useEffect(() => {
+    if (focusedRowKey != null && !displayData.some((r) => r.key === focusedRowKey)) {
+      setFocusedRowKey(null)
+    }
+  }, [displayData, focusedRowKey])
+
+  // 焦點變動時把該列捲到可視範圍
+  useEffect(() => {
+    if (focusedRowKey == null) return
+    const el = document.querySelector(
+      `.Transactions .ant-table-row[data-row-key="${focusedRowKey}"]`
+    )
+    el?.scrollIntoView?.({ block: 'nearest' })
+  }, [focusedRowKey])
+
+  // 鍵盤導覽（↑/↓ 移動框選、Enter 開啟詳情）：
+  // 放在 displayData 計算之後，避免 deps 在 TDZ 中讀到 displayData
+  // 有 drawer / modal 開啟時禁用，避免和裡面的鍵盤行為打架
+  const overlayOpen = drawerVisible || addPositionModalVisible || addTradeModalVisible
+  useShortcut('trades-row-up', () => {
+    setFocusedRowKey((prev) => {
+      if (!displayData.length) return prev
+      if (prev == null) return displayData[0].key
+      const idx = displayData.findIndex((r) => r.key === prev)
+      if (idx <= 0) return displayData[0].key
+      return displayData[idx - 1].key
+    })
+  }, { enabled: !overlayOpen, deps: [displayData, overlayOpen] })
+  useShortcut('trades-row-down', () => {
+    setFocusedRowKey((prev) => {
+      if (!displayData.length) return prev
+      if (prev == null) return displayData[0].key
+      const idx = displayData.findIndex((r) => r.key === prev)
+      if (idx < 0 || idx >= displayData.length - 1) return displayData[displayData.length - 1].key
+      return displayData[idx + 1].key
+    })
+  }, { enabled: !overlayOpen, deps: [displayData, overlayOpen] })
+  useShortcut('trades-row-first', () => {
+    if (!displayData.length) return
+    setFocusedRowKey(displayData[0].key)
+  }, { enabled: !overlayOpen, deps: [displayData, overlayOpen] })
+  useShortcut('trades-row-last', () => {
+    if (!displayData.length) return
+    setFocusedRowKey(displayData[displayData.length - 1].key)
+  }, { enabled: !overlayOpen, deps: [displayData, overlayOpen] })
+  useShortcut('trades-row-open', () => {
+    if (focusedRowKey == null) return
+    const record = displayData.find((r) => r.key === focusedRowKey)
+    if (record) handleView(record)
+  }, { enabled: !overlayOpen, deps: [displayData, focusedRowKey, overlayOpen] })
 
   // -------------------------   configs   ----------------------------
   // 錯誤分類選項（對應後端 ErrorCategory enum）
@@ -1023,6 +1077,7 @@ const Transactions = () => {
             sticky={true}
             tableLayout='auto'
             scroll={{ x: 'max-content' }}
+            rowClassName={(record) => record.key === focusedRowKey ? 'Transactions-row-focused' : ''}
             expandable={{
               expandedRowRender,
               expandedRowKeys,
