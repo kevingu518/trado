@@ -77,6 +77,39 @@
       background-color: rgba(42, 82, 152, 0.1) !important;
     }
   }
+
+  // 每日進出：DESC 排序下，週分隔線畫在週一下方（週一之下即進入上一週）
+  .ant-table-row.DailyPositions-row-week-start > .ant-table-cell {
+    border-bottom: 2px solid var(--border-color);
+  }
+
+  // 標題用的 Segmented：對齊頁面其他輸入元件的 rounded-sm，壓低視覺重量
+  .trades-view-segmented.ant-segmented {
+    border-radius: 4px;
+    padding: 2px;
+    background-color: rgba(0, 0, 0, 0.03);
+
+    .ant-segmented-item {
+      border-radius: 3px;
+      min-height: 0;
+      transition: background-color 0.15s ease;
+
+      &-label {
+        min-height: 0;
+        padding: 4px 16px;
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 1.4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      &-selected {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+    }
+  }
   .expandedRow{
     // 展開動畫效果 - 俐落穩定的高度展開
     animation: expandRowSlideDown 1.2s ease-out;

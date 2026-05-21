@@ -8,6 +8,9 @@ import request from './request';
 // Read - 取得交易列表
 export const getTradesApi = (params = {}) => request.get('/trades', { params })
 
+// Read - 取得每日進出倉位（依日期聚合）
+export const getDailyPositionsApi = (params = {}) => request.get('/trades/daily-positions', { params })
+
 // Read - 取得單筆交易
 export const getTradeApi = (tradeId) => request.get(`/trades/${tradeId}`)
 

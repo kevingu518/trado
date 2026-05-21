@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import dayjs from 'dayjs'
 
-import { Table, Tag, Button, Space, message, Card, Row, Col, Switch, Rate, Tooltip, DatePicker, Select, Input, Pagination, Tabs, Statistic, Dropdown } from 'antd'
+import { Table, Tag, Button, Space, message, Card, Row, Col, Switch, Rate, Tooltip, DatePicker, Select, Input, Pagination, Tabs, Statistic, Dropdown, Segmented } from 'antd'
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -20,6 +20,7 @@ import AddTradeModal from '../components/AddTradeModal'
 import AddPositionModal from '../components/AddPositionModal'
 import TradeDrawer from '../components/TradeDrawer'
 import KLineChart from '../components/KLineChart'
+import DailyPositionsView from '../components/DailyPositionsView'
 
 const { RangePicker } = DatePicker;
 
@@ -31,6 +32,9 @@ const Transactions = () => {
   const CLR_NONE = '#666'
   const pnlColor = (v) => v > 0 ? CLR_UP : v < 0 ? CLR_DOWN : CLR_NONE
 
+  // 視圖模式：'trades' = 交易記錄；'daily' = 每日進出
+  const [viewMode, setViewMode] = useState('trades')
+
   // 新增過濾器狀態（使用後端命名）
   // Filter states
   const [dateRange, setDateRange] = useState(null) // 時間範圍
@@ -39,6 +43,7 @@ const Transactions = () => {
   const [directionFilter, setDirectionFilter] = useState(null) // 多空方向
   const [statusFilter, setStatusFilter] = useState('all') // 交易狀態
   const [strategyFilter, setStrategyFilter] = useState(null) // 策略
+  const [actionFilter, setActionFilter] = useState('all') // 每日進出視圖：買進/賣出
 
   const [drawerVisible, setDrawerVisible] = useState(false)
   const [addPositionModalVisible, setAddPositionModalVisible] = useState(false)
@@ -57,6 +62,23 @@ const Transactions = () => {
     showTotal: (total, range) =>
       `第 ${range[0]}-${range[1]} 項，共 ${total} 項`,
   })
+  // 每日進出視圖獨立的 pagination（單位是「天」，非「筆」）
+  const [dailyPagination, setDailyPagination] = useState({
+    current: 1,
+    pageSize: 30,
+    total: 0,
+    showSizeChanger: true,
+    pageSizeOptions: [10, 30, 60, 90],
+    showTotal: (total, range) => `第 ${range[0]}-${range[1]} 天，共 ${total} 天`,
+  })
+
+  // filter 變動時，daily pagination 回到第 1 頁
+  useEffect(() => {
+    setDailyPagination(prev => ({ ...prev, current: 1 }))
+  }, [dateRange, symbolFilter, directionFilter, actionFilter])
+
+  const handleDailyPagination = (current, pageSize) =>
+    setDailyPagination(prev => ({ ...prev, current, pageSize }))
 
   // 股號輸入框 ref（供「/」快捷鍵 focus）
   const symbolInputRef = useRef(null)
@@ -76,12 +98,16 @@ const Transactions = () => {
     setStrategyFilter(null)
     setDirectionFilter(null)
     setStatusFilter('all')
+    setActionFilter('all')
   }
 
-  // 快捷鍵：n 開單 / / focus 股號搜尋 / r 清除過濾 / s 切換狀態
+  // 快捷鍵：n 開單 / / focus 股號搜尋 / r 清除過濾 / s 切換狀態 / a 切換動作 / v 切換視圖
   useShortcut('trades-new', () => handleAdd())
   useShortcut('trades-search', () => symbolInputRef.current?.focus())
   useShortcut('trades-reset', () => handleResetFilters())
+  useShortcut('trades-view-toggle', () => {
+    setViewMode((prev) => (prev === 'trades' ? 'daily' : 'trades'))
+  })
   useShortcut('trades-status-cycle', () => {
     // 用 functional setState 讀最新值，避免閉包過期
     setStatusFilter((prev) => {
@@ -89,7 +115,14 @@ const Transactions = () => {
       const idx = order.indexOf(prev)
       return order[(idx + 1) % order.length]
     })
-  })
+  }, { enabled: viewMode === 'trades', deps: [viewMode] })
+  useShortcut('trades-action-cycle', () => {
+    setActionFilter((prev) => {
+      const order = ['all', 'buy', 'sell']
+      const idx = order.indexOf(prev)
+      return order[(idx + 1) % order.length]
+    })
+  }, { enabled: viewMode === 'daily', deps: [viewMode] })
 
   // -------------------------   hooks   ----------------------------
   // 使用 useTrades hook 取得交易資料
@@ -179,6 +212,7 @@ const Transactions = () => {
   // 放在 displayData 計算之後，避免 deps 在 TDZ 中讀到 displayData
   // 有 drawer / modal 開啟時禁用，避免和裡面的鍵盤行為打架
   const overlayOpen = drawerVisible || addPositionModalVisible || addTradeModalVisible
+  const tradesNavEnabled = !overlayOpen && viewMode === 'trades'
   useShortcut('trades-row-up', () => {
     setFocusedRowKey((prev) => {
       if (!displayData.length) return prev
@@ -187,7 +221,7 @@ const Transactions = () => {
       if (idx <= 0) return displayData[0].key
       return displayData[idx - 1].key
     })
-  }, { enabled: !overlayOpen, deps: [displayData, overlayOpen] })
+  }, { enabled: tradesNavEnabled, deps: [displayData, tradesNavEnabled] })
   useShortcut('trades-row-down', () => {
     setFocusedRowKey((prev) => {
       if (!displayData.length) return prev
@@ -196,20 +230,20 @@ const Transactions = () => {
       if (idx < 0 || idx >= displayData.length - 1) return displayData[displayData.length - 1].key
       return displayData[idx + 1].key
     })
-  }, { enabled: !overlayOpen, deps: [displayData, overlayOpen] })
+  }, { enabled: tradesNavEnabled, deps: [displayData, tradesNavEnabled] })
   useShortcut('trades-row-first', () => {
     if (!displayData.length) return
     setFocusedRowKey(displayData[0].key)
-  }, { enabled: !overlayOpen, deps: [displayData, overlayOpen] })
+  }, { enabled: tradesNavEnabled, deps: [displayData, tradesNavEnabled] })
   useShortcut('trades-row-last', () => {
     if (!displayData.length) return
     setFocusedRowKey(displayData[displayData.length - 1].key)
-  }, { enabled: !overlayOpen, deps: [displayData, overlayOpen] })
+  }, { enabled: tradesNavEnabled, deps: [displayData, tradesNavEnabled] })
   useShortcut('trades-row-open', () => {
     if (focusedRowKey == null) return
     const record = displayData.find((r) => r.key === focusedRowKey)
     if (record) handleView(record)
-  }, { enabled: !overlayOpen, deps: [displayData, focusedRowKey, overlayOpen] })
+  }, { enabled: tradesNavEnabled, deps: [displayData, focusedRowKey, tradesNavEnabled] })
 
   // -------------------------   configs   ----------------------------
   // 錯誤分類選項（對應後端 ErrorCategory enum）
@@ -243,10 +277,11 @@ const Transactions = () => {
     setAddTradeModalVisible(true)
   }
 
-  // 處理新增 trade（可選同時建立倉位）
-  const handleAddTrade = async (tradeData, positionData = null) => {
+  // 處理新增 trade（可選同時建立倉位、可選同步補入金）
+  const handleAddTrade = async (tradeData, positionData = null, depositData = null) => {
     try {
       // 準備 API payload（使用前端格式，DTO 會自動轉換）
+      // firstPosition / deposit 會由後端 createTrade 在同一個 transaction 內寫入
       const payload = {
         symbol: tradeData.symbol,
         direction: tradeData.direction, // "long" 或 "short"
@@ -256,27 +291,24 @@ const Transactions = () => {
         createdAt: tradeData.createdAt, // 已經是 YYYY-MM-DD 格式
         closedAt: tradeData.closedAt || null,
         note: tradeData.note || null,
+        ...(positionData && { firstPosition: positionData }),
+        ...(depositData && { deposit: depositData }),
       }
 
-      // 使用 hook 的 createTrade 方法
-      const { err: error, result } = await createTrade(payload)
+      // 使用 hook 的 createTrade 方法（atomic：trade + firstPosition + deposit）
+      const { err: error } = await createTrade(payload)
 
       if (error) {
         message.error(error.msg || error.message || '新增交易記錄失敗')
         return
       }
 
-      // 如果有倉位資料，接著建立倉位
-      if (positionData && result?.id) {
-        const [posErr] = await to(positionsService.addPosition(result.id, positionData))
-        if (posErr) {
-          message.warning('交易已新增，但倉位建立失敗：' + (posErr.msg || posErr.message || '未知錯誤'))
-          return
-        }
-        await refetchTrades()
-      }
-
-      message.success(positionData ? '交易記錄與倉位已新增' : '交易記錄已新增')
+      const successMsg = depositData
+        ? '交易、倉位與入金已同步新增'
+        : positionData
+          ? '交易記錄與倉位已新增'
+          : '交易記錄已新增'
+      message.success(successMsg)
     } catch (err) {
       console.error('新增交易記錄失敗:', err)
       message.error('新增交易記錄失敗，請稍後再試')
@@ -290,7 +322,7 @@ const Transactions = () => {
   }
 
   // 處理保存 trade（用於 Modal 的 onSave，支援新增和編輯）
-  const handleSaveTrade = async (tradeIdOrData, tradeDataOrPosition) => {
+  const handleSaveTrade = async (tradeIdOrData, tradeDataOrPosition, depositData = null) => {
     try {
       // 判斷是編輯模式還是新增模式
       if (typeof tradeIdOrData === 'string' || typeof tradeIdOrData === 'number') {
@@ -302,8 +334,8 @@ const Transactions = () => {
         }
         message.success('交易記錄已更新')
       } else {
-        // 新增模式：第一個參數是 tradeData，第二個是 positionData（可選）
-        await handleAddTrade(tradeIdOrData, tradeDataOrPosition)
+        // 新增模式：第一個是 tradeData，第二個是 positionData（可選），第三個是 depositData（可選）
+        await handleAddTrade(tradeIdOrData, tradeDataOrPosition, depositData)
       }
     } catch (err) {
       console.error('保存交易記錄失敗:', err)
@@ -968,19 +1000,31 @@ const Transactions = () => {
       <div className="card h-full px-md overflow-hidden" style={{ position: 'relative', padding: '12px' }}>
         {/* title */}
         <div className="useBetween">
-          <div>
-            <span className='text-title font-bold font-serif'>交易記錄</span>
-            <span className='text-body2 font-bold font-serif ml-base'>本日剩餘紀錄次數 43 / 50</span>
+          <div className='useStart gap-base'>
+            <Segmented
+              className='trades-view-segmented font-serif'
+              value={viewMode}
+              onChange={setViewMode}
+              options={[
+                { label: '交易記錄', value: 'trades' },
+                { label: '每日進出', value: 'daily' },
+              ]}
+            />
+            {viewMode === 'trades' && (
+              <span className='text-body2 font-bold font-serif ml-base'>本日剩餘紀錄次數 43 / 50</span>
+            )}
           </div>
-          <Button 
-            type="primary"
-            className='rounded-sm px-lg'
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            size="middle"
+          {viewMode === 'trades' && (
+            <Button
+              type="primary"
+              className='rounded-sm px-lg'
+              icon={<PlusOutlined />}
+              onClick={handleAdd}
+              size="middle"
             >
-            開單
-          </Button>
+              開單
+            </Button>
+          )}
         </div>
         {/* filter */}
         <div className='useBetween my-sm py-sm'>
@@ -1010,19 +1054,21 @@ const Transactions = () => {
               allowClear
               style={{ width: 120 }}
             />
-            <Select
-              className={`rounded-sm ${strategyFilter ? 'has-value' : ''}`}
-              popupClassName="trades-select-dropdown"
-              value={strategyFilter}
-              onChange={setStrategyFilter}
-              placeholder="策略"
-              allowClear
-              style={{ width: 120 }}
-            >
-              {getUniqueStrategies().map(strategy => (
-                <Option key={strategy} value={strategy}>{strategy}</Option>
-              ))}
-            </Select>
+            {viewMode === 'trades' && (
+              <Select
+                className={`rounded-sm ${strategyFilter ? 'has-value' : ''}`}
+                popupClassName="trades-select-dropdown"
+                value={strategyFilter}
+                onChange={setStrategyFilter}
+                placeholder="策略"
+                allowClear
+                style={{ width: 120 }}
+              >
+                {getUniqueStrategies().map(strategy => (
+                  <Option key={strategy} value={strategy}>{strategy}</Option>
+                ))}
+              </Select>
+            )}
             <Select
               className={`rounded-sm ${directionFilter ? 'has-value' : ''}`}
               popupClassName="trades-select-dropdown"
@@ -1035,20 +1081,39 @@ const Transactions = () => {
               <Option value="long">多</Option>
               <Option value="short">空</Option>
             </Select>
-            <Select
-              className={`rounded-sm ${statusFilter !== 'all' ? 'has-value' : ''}`}
-              popupClassName="trades-select-dropdown"
-              value={statusFilter}
-              onChange={setStatusFilter}
-              placeholder="交易狀態"
-              style={{ width: 140 }}
-            >
-              <Option value="all">全部</Option>
-              <Option value="open">持倉中</Option>
-              <Option value="completed">已清倉</Option>
-            </Select>
+            {viewMode === 'trades' && (
+              <Select
+                className={`rounded-sm ${statusFilter !== 'all' ? 'has-value' : ''}`}
+                popupClassName="trades-select-dropdown"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                placeholder="交易狀態"
+                style={{ width: 140 }}
+              >
+                <Option value="all">全部</Option>
+                <Option value="open">持倉中</Option>
+                <Option value="completed">已清倉</Option>
+              </Select>
+            )}
+            {viewMode === 'daily' && (
+              <Select
+                className={`rounded-sm ${actionFilter !== 'all' ? 'has-value' : ''}`}
+                popupClassName="trades-select-dropdown"
+                value={actionFilter}
+                onChange={setActionFilter}
+                placeholder="動作"
+                style={{ width: 120 }}
+                options={[
+                  { label: '全部', value: 'all' },
+                  { label: '買進', value: 'buy' },
+                  { label: '賣出', value: 'sell' },
+                ]}
+              />
+            )}
             {/* 清除按鈕 */}
-            {(dateRange || symbolInput || strategyFilter || directionFilter || statusFilter !== 'all') && (
+            {(dateRange || symbolInput || directionFilter
+              || (viewMode === 'trades' && (strategyFilter || statusFilter !== 'all'))
+              || (viewMode === 'daily' && actionFilter !== 'all')) && (
               <Button
                 className='reset-filter-btn'
                 onClick={handleResetFilters}
@@ -1057,81 +1122,112 @@ const Transactions = () => {
               </Button>
             )}
           </div>
-          <div class="useStart gap-sm">
-            <Pagination
-              size='small'
-              className='rounded-xs ml-sm'
-              {...pagination}
-              onChange={handlePagination}
-              onShowSizeChange={handlePagination}
-            />
-          </div>
+          {viewMode === 'trades' && (
+            <div class="useStart gap-sm">
+              <Pagination
+                size='small'
+                className='rounded-xs ml-sm'
+                {...pagination}
+                onChange={handlePagination}
+                onShowSizeChange={handlePagination}
+              />
+            </div>
+          )}
+          {viewMode === 'daily' && (
+            <div class="useStart gap-sm">
+              <Pagination
+                size='small'
+                className='rounded-xs ml-sm'
+                {...dailyPagination}
+                onChange={handleDailyPagination}
+                onShowSizeChange={handleDailyPagination}
+              />
+            </div>
+          )}
         </div>
-        {/* table */}
-        <PerfectScrollbar className='container bg-white'>
-            <Table
-            size='small'
-            columns={columns}
-            dataSource={displayData}
-            loading={tradesLoading}
-            sticky={true}
-            tableLayout='auto'
-            scroll={{ x: 'max-content' }}
-            rowClassName={(record) => record.key === focusedRowKey ? 'Transactions-row-focused' : ''}
-            expandable={{
-              expandedRowRender,
-              expandedRowKeys,
-              onExpand: handleExpand,
-              expandRowByClick: true,
-              showExpandColumn: false,
+        {viewMode === 'trades' ? (
+          <>
+            {/* table */}
+            <PerfectScrollbar className='container bg-white'>
+                <Table
+                size='small'
+                columns={columns}
+                dataSource={displayData}
+                loading={tradesLoading}
+                sticky={true}
+                tableLayout='auto'
+                scroll={{ x: 'max-content' }}
+                rowClassName={(record) => record.key === focusedRowKey ? 'Transactions-row-focused' : ''}
+                expandable={{
+                  expandedRowRender,
+                  expandedRowKeys,
+                  onExpand: handleExpand,
+                  expandRowByClick: true,
+                  showExpandColumn: false,
+                }}
+                onRow={(record) => ({
+                  onClick: (e) => {
+                    // 如果按了 Ctrl (Windows/Linux) 或 Cmd (Mac)
+                    if (e.ctrlKey || e.metaKey) {
+                      e.stopPropagation() // 阻止展開 row
+                      handleView(record) // 打開 drawer
+                    }
+                    // 如果沒有按 Ctrl，保持原本的展開行為（expandRowByClick 會處理）
+                  },
+                })}
+                pagination={false}
+                />
+            </PerfectScrollbar>
+            {/* statistic */}
+            <div className='Transactions-statistic useStart bg-white px-md'>
+              <Statistic
+                title="總交易數"
+                value={pagination.total || 0}
+                className="useBaseline gap-sm flex-1"
+              />
+              <Statistic
+                title="本頁持倉中"
+                value={displayData.filter(d => d.status === 'open').length}
+                valueStyle={{ color: '#faad14' }}
+                className="useBaseline gap-sm flex-1"
+              />
+              <Statistic
+                title="本頁盈虧"
+                value={displayData.reduce((sum, d) => sum + (d.profitLoss || 0), 0)}
+                precision={0}
+                valueStyle={{
+                  color: displayData.reduce((sum, d) => sum + (d.profitLoss || 0), 0) > 0 ? CLR_UP : CLR_DOWN
+                }}
+                className="useBaseline gap-sm flex-1"
+              />
+              <Statistic
+                title="本頁勝率"
+                value={(() => {
+                  const completed = displayData.filter(d => d.status === 'completed')
+                  const win = completed.filter(d => (d.profitLoss || 0) > 0).length
+                  return completed.length > 0 ? ((win / completed.length) * 100).toFixed(1) : 0
+                })()}
+                suffix="%"
+                valueStyle={{ color: '#1890ff' }}
+                className="useBaseline gap-sm flex-1"
+              />
+            </div>
+          </>
+        ) : (
+          <DailyPositionsView
+            dateRange={dateRange}
+            symbolFilter={symbolFilter}
+            directionFilter={directionFilter}
+            actionFilter={actionFilter}
+            pagination={dailyPagination}
+            onPaginationChange={setDailyPagination}
+            keyboardEnabled={!overlayOpen}
+            onViewTrade={(tradeId) => {
+              setSelectedRecord({ id: tradeId })
+              setDrawerVisible(true)
             }}
-            onRow={(record) => ({
-              onClick: (e) => {
-                // 如果按了 Ctrl (Windows/Linux) 或 Cmd (Mac)
-                if (e.ctrlKey || e.metaKey) {
-                  e.stopPropagation() // 阻止展開 row
-                  handleView(record) // 打開 drawer
-                }
-                // 如果沒有按 Ctrl，保持原本的展開行為（expandRowByClick 會處理）
-              },
-            })}
-            pagination={false}
-            />
-        </PerfectScrollbar>
-        {/* statistic */}
-        <div className='Transactions-statistic useStart bg-white px-md'>
-          <Statistic 
-            title="總交易數" 
-            value={pagination.total || 0}
-            className="useBaseline gap-sm flex-1"
           />
-          <Statistic
-            title="本頁持倉中"
-            value={displayData.filter(d => d.status === 'open').length}
-            valueStyle={{ color: '#faad14' }}
-            className="useBaseline gap-sm flex-1"
-          />
-          <Statistic
-            title="本頁盈虧"
-            value={displayData.reduce((sum, d) => sum + (d.profitLoss || 0), 0)}
-            precision={0}
-            valueStyle={{
-              color: displayData.reduce((sum, d) => sum + (d.profitLoss || 0), 0) > 0 ? CLR_UP : CLR_DOWN
-            }}
-            className="useBaseline gap-sm flex-1"
-          />
-          <Statistic
-            title="本頁勝率"
-            value={(() => {
-              const completed = displayData.filter(d => d.status === 'completed')
-              const win = completed.filter(d => (d.profitLoss || 0) > 0).length
-              return completed.length > 0 ? ((win / completed.length) * 100).toFixed(1) : 0
-            })()}
-            suffix="%"
-            valueStyle={{ color: '#1890ff' }}
-            className="useBaseline gap-sm flex-1"
-          />
-        </div>
+        )}
 
         <TradeDrawer
           visible={drawerVisible}

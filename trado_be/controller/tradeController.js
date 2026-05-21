@@ -1,5 +1,6 @@
 import tradeService from '../services/TradeService.js';
 import positionAdjustmentService from '../services/PositionAdjustmentService.js';
+import dailyPositionService from '../services/DailyPositionService.js';
 
 class TradeController {
   // 使用箭頭函數，自動綁定 this，不需要 .bind()
@@ -36,6 +37,37 @@ class TradeController {
     res.json({
       success: true,
       data: result.trades,
+      pagination: result.pagination,
+    });
+  };
+
+  getDailyPositions = async (req, res) => {
+    const userId = req.user.id;
+    const {
+      page,
+      limit,
+      startDate,
+      endDate,
+      symbol,
+      direction,
+      action,
+      sortOrder,
+    } = req.query;
+
+    const result = await dailyPositionService.getDailyPositions(userId, {
+      page,
+      limit,
+      startDate,
+      endDate,
+      symbol,
+      direction,
+      action,
+      sortOrder,
+    });
+
+    res.json({
+      success: true,
+      data: result.days,
       pagination: result.pagination,
     });
   };

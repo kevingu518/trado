@@ -12,6 +12,9 @@ router.use(authenticate);
 router.get('/', asyncHandler(tradeController.getAllTrades));
 router.post('/', asyncHandler(tradeController.createTrade));
 
+// Daily positions（必須在 /:id 之前，避免被 /:id 比對掉）
+router.get('/daily-positions', asyncHandler(tradeController.getDailyPositions));
+
 // Position routes (必須在 /:id 之前，避免路由衝突)
 router.get('/:id/positions', asyncHandler(tradeController.getPositions));
 router.post('/:id/positions', asyncHandler(tradeController.createPosition));
