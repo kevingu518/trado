@@ -18,6 +18,7 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
+  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) : []),
 ];
 
 // 開發環境允許區網 IP (192.168.x.x / 10.x.x.x / 172.16-31.x.x) 在 5173/3000

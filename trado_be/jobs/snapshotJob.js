@@ -9,6 +9,8 @@ cron.schedule('30 14 * * 1-5', async () => {
   } catch (err) {
     console.error('[SnapshotJob] Failed:', err.message);
   }
+}, {
+  timezone: 'Asia/Taipei',
 });
 
-console.log('[SnapshotJob] Scheduled: weekdays at 14:30');
+console.log('[SnapshotJob] Scheduled: weekdays at 14:30 (Asia/Taipei)');
