@@ -1,5 +1,5 @@
 // src/features/trades/components/AddTradeModal.jsx
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { Modal, Form, Input, Select, DatePicker, InputNumber, Button, Space, message, Segmented, Switch } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -15,8 +15,13 @@ const AddTradeModal = ({
   initialData = null // 編輯模式時傳入初始資料
 }) => {
   const [form] = Form.useForm()
+  const symbolInputRef = useRef(null)
+  const priceInputRef = useRef(null)
   const isEditMode = !!tradeId
   const withPosition = Form.useWatch('withPosition', form)
+  const withDeposit = Form.useWatch('withDeposit', form)
+  const positionShares = Form.useWatch('positionShares', form)
+  const positionPrice = Form.useWatch('positionPrice', form)
 
   // 獲取策略列表（只獲取啟用的策略）
   const { data: strategiesData, loading: strategiesLoading } = useStrategies(
@@ -44,6 +49,16 @@ const AddTradeModal = ({
     return options
   }, [strategiesData])
 
+  // 開啟「同步補入金」時，預設金額帶入買入成本（股數 × 價格）
+  useEffect(() => {
+    if (withDeposit && positionShares && positionPrice) {
+      const current = form.getFieldValue('depositAmount')
+      if (current == null || current === '') {
+        form.setFieldsValue({ depositAmount: Math.round(positionShares * positionPrice) })
+      }
+    }
+  }, [withDeposit, positionShares, positionPrice, form])
+
   // 初始化表單資料（編輯模式）
   useEffect(() => {
     if (visible && isEditMode && initialData) {
@@ -70,6 +85,7 @@ const AddTradeModal = ({
         direction: 'long',
         strategy: 'none',
         withPosition: false,
+        withDeposit: false,
         createdAt: dayjs(),
       })
     }
@@ -109,9 +125,20 @@ const AddTradeModal = ({
           action: values.direction === 'long' ? 'buy' : 'sell',
           shares: values.positionShares,
           price: values.positionPrice,
-          date: values.createdAt, // 直接用開倉日
+          date: values.createdAt ? values.createdAt.format('YYYY-MM-DD') : null, // 直接用開倉日
           stopLoss: values.positionStopLoss || null,
           note: values.positionNote || null,
+        }
+      }
+
+      // 組裝同步補入金資料（須同時建立倉位才會啟用）
+      let depositData = null
+      if (!isEditMode && values.withPosition && values.withDeposit && values.depositAmount > 0) {
+        depositData = {
+          amount: values.depositAmount,
+          date: values.createdAt ? values.createdAt.format('YYYY-MM-DD') : null,
+          method: null,
+          notes: '補單同步入金',
         }
       }
 
@@ -119,7 +146,7 @@ const AddTradeModal = ({
       if (isEditMode) {
         await onSave(tradeId, tradeData)
       } else {
-        await onSave(tradeData, positionData)
+        await onSave(tradeData, positionData, depositData)
       }
       
       form.resetFields()
@@ -144,6 +171,9 @@ const AddTradeModal = ({
       title={isEditMode ? "編輯交易記錄" : "新增交易記錄"}
       open={visible}
       onCancel={handleCancel}
+      afterOpenChange={(open) => {
+        if (open) symbolInputRef.current?.focus()
+      }}
       className='add-trade-modal'
       width={640}
       footer={[
@@ -176,8 +206,9 @@ const AddTradeModal = ({
               { pattern: /^[0-9]{4}$/, message: '股號必須為4位數字' }
             ]}
           >
-            <Input 
-              placeholder="請輸入4位數字股號" 
+            <Input
+              ref={symbolInputRef}
+              placeholder="請輸入4位數字股號"
               maxLength={4}
               style={{ borderRadius: '4px' }}
             />
@@ -248,7 +279,12 @@ const AddTradeModal = ({
                 <Switch
                   size="small"
                   checked={withPosition}
-                  onChange={(checked) => form.setFieldsValue({ withPosition: checked })}
+                  onChange={(checked) => {
+                    form.setFieldsValue({ withPosition: checked })
+                    if (checked) {
+                      setTimeout(() => priceInputRef.current?.focus(), 0)
+                    }
+                  }}
                 />
                 <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>同時建立首筆倉位</span>
               </Space>
@@ -267,6 +303,7 @@ const AddTradeModal = ({
                     ]}
                   >
                     <InputNumber
+                      ref={priceInputRef}
                       placeholder="請輸入價格"
                       style={{ width: '100%', borderRadius: '4px' }}
                       min={0}
@@ -322,6 +359,43 @@ const AddTradeModal = ({
                     />
                   </Form.Item>
                 </div>
+
+                <Form.Item
+                  name="withDeposit"
+                  valuePropName="checked"
+                  style={{ marginBottom: withDeposit ? 16 : 0 }}
+                >
+                  <Space align="center">
+                    <Switch
+                      size="small"
+                      checked={withDeposit}
+                      onChange={(checked) => form.setFieldsValue({ withDeposit: checked })}
+                    />
+                    <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                      同步補入金（補歷史單時用，避免現金變負）
+                    </span>
+                  </Space>
+                </Form.Item>
+
+                {withDeposit && (
+                  <Form.Item
+                    label="入金金額"
+                    name="depositAmount"
+                    rules={[
+                      { required: true, message: '請輸入入金金額' },
+                      { type: 'number', min: 1, message: '入金金額必須大於 0' },
+                    ]}
+                    extra="預設帶入買入成本（股數 × 價格），可自行調整。日期會跟交易同一天。"
+                  >
+                    <InputNumber
+                      placeholder="入金金額"
+                      style={{ width: '100%', borderRadius: '4px' }}
+                      min={1}
+                      precision={0}
+                      addonBefore="$"
+                    />
+                  </Form.Item>
+                )}
               </>
             )}
           </>

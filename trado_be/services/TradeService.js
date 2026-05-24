@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import { NotFoundError, AppError } from '../errors/index.js';
 import AccountService from './AccountService.js';
+import { calculateFee, calculateTax } from '../utils/feeCalculator.js';
 
 class TradeService {
   async getAllTrades(userId, options = {}) {
@@ -151,46 +152,145 @@ class TradeService {
   }
 
   async createTrade(data, userId) {
+    // 抽出可選的「同時建立首筆倉位」與「同步補入金」資料
+    const { firstPosition, deposit, ...tradeFields } = data;
+
     // 驗證 direction 必須是 'long' 或 'short'
-    if (data.direction && !['long', 'short'].includes(data.direction)) {
+    if (tradeFields.direction && !['long', 'short'].includes(tradeFields.direction)) {
       throw new AppError('Direction must be either "long" or "short"', 400);
     }
 
     // 處理 createdAt（開倉日）
     const tradeData = {
-      ...data,
+      ...tradeFields,
       userId,
     };
 
     // 如果傳入了 createdAt，處理日期格式
-    if (data.createdAt) {
+    if (tradeFields.createdAt) {
       // 如果只有日期（YYYY-MM-DD），補上時間部分為當天開始（00:00:00）
-      if (typeof data.createdAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.createdAt)) {
-        tradeData.createdAt = new Date(data.createdAt + 'T00:00:00.000Z');
-      } else if (data.createdAt instanceof Date) {
-        tradeData.createdAt = data.createdAt;
+      if (typeof tradeFields.createdAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(tradeFields.createdAt)) {
+        tradeData.createdAt = new Date(tradeFields.createdAt + 'T00:00:00.000Z');
+      } else if (tradeFields.createdAt instanceof Date) {
+        tradeData.createdAt = tradeFields.createdAt;
       } else {
-        tradeData.createdAt = new Date(data.createdAt);
+        tradeData.createdAt = new Date(tradeFields.createdAt);
       }
     }
 
     // 驗證 strategyId 是否存在，如果不存在則設為 null（避免外鍵約束錯誤）
-    if (data.strategyId) {
+    if (tradeFields.strategyId) {
       const strategy = await prisma.strategy.findUnique({
-        where: { id: data.strategyId },
+        where: { id: tradeFields.strategyId },
         select: { id: true },
       });
-      
+
       // 如果 strategy 不存在，設為 null（不存入資料庫）
       if (!strategy) {
         tradeData.strategyId = null;
       }
     }
 
-    return await prisma.trade.create({
-      data: tradeData,
+    // 預先驗證 deposit
+    let depositPayload = null;
+    if (deposit) {
+      const amount = Number(deposit.amount);
+      if (!amount || amount <= 0) {
+        throw new AppError('Deposit amount must be greater than 0', 400);
+      }
+      const depositDate = deposit.date ? new Date(deposit.date) : new Date();
+      const currentBalance = await AccountService._computeCashBalance(userId);
+      depositPayload = {
+        userId,
+        type: 'deposit',
+        amount,
+        balance: currentBalance + amount,
+        method: deposit.method || null,
+        notes: deposit.notes || null,
+        date: depositDate,
+      };
+    }
+
+    // 預先準備 firstPosition（補上 fee / tax，timestamp 正規化）
+    let positionPayload = null;
+    if (firstPosition) {
+      const { action, shares, price, date, stopLoss, note } = firstPosition;
+      if (!['buy', 'sell'].includes(action)) {
+        throw new AppError('Position action must be "buy" or "sell"', 400);
+      }
+      if (!shares || shares <= 0) {
+        throw new AppError('Position shares must be greater than 0', 400);
+      }
+      if (price == null || Number(price) <= 0) {
+        throw new AppError('Position price must be greater than 0', 400);
+      }
+
+      // 正規化 timestamp
+      let timestamp;
+      if (date instanceof Date) {
+        timestamp = date;
+      } else if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        timestamp = new Date(date + 'T00:00:00.000Z');
+      } else if (date) {
+        timestamp = new Date(date);
+      } else {
+        timestamp = tradeData.createdAt || new Date();
+      }
+
+      // 取得用戶券商手續費折扣
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { brokerFeeDiscount: true },
+      });
+      const discount = user?.brokerFeeDiscount ? Number(user.brokerFeeDiscount) : 1.0;
+      const fee = calculateFee(shares, price, discount);
+      // 首筆倉位不可能當沖（同 trade 還沒有反向 adjustment），稅率以非當沖計
+      const tax = action === 'sell' ? calculateTax(shares, price, false) : 0;
+
+      positionPayload = {
+        action,
+        shares,
+        price,
+        timestamp,
+        stopLoss: stopLoss || null,
+        note: note || null,
+        fee,
+        tax,
+        isDayTrade: false,
+      };
+    }
+
+    // Atomic：deposit + trade + firstPosition 一起成功或一起失敗
+    const tradeId = await prisma.$transaction(async (tx) => {
+      if (depositPayload) {
+        await tx.accountTransaction.create({ data: depositPayload });
+      }
+
+      const created = await tx.trade.create({ data: tradeData });
+
+      if (positionPayload) {
+        await tx.positionAdjustment.create({
+          data: { ...positionPayload, tradeId: created.id },
+        });
+      }
+
+      return created.id;
+    });
+
+    // 後置作業：重算 metrics（會連帶觸發快照），或單純更新快照
+    if (positionPayload) {
+      await this.calculateTradeMetrics(tradeId);
+    } else if (depositPayload) {
+      await AccountService.createOrUpdateSnapshot(userId, depositPayload.date);
+    }
+
+    return await prisma.trade.findUnique({
+      where: { id: tradeId },
       include: {
-        positionAdjustments: true,
+        positionAdjustments: {
+          where: { deletedAt: null },
+          orderBy: { timestamp: 'asc' },
+        },
       },
     });
   }

@@ -234,8 +234,8 @@ export const tradeDTO = {
     return {
       symbol: frontendTrade.symbol,
       direction: frontendTrade.direction, // 後端已改為使用 long/short，直接使用
-      status: isStatusAPIFormat 
-        ? frontendTrade.status 
+      status: isStatusAPIFormat
+        ? frontendTrade.status
         : (statusMap[frontendTrade.status] || frontendTrade.status),
       strategyId: frontendTrade.strategyId || frontendTrade.strategy || null, // 策略 ID（優先使用 strategyId，否則使用 strategy）
       createdAt: frontendTrade.createdAt || null, // 開倉日
@@ -244,11 +244,14 @@ export const tradeDTO = {
       reviewNotes: frontendTrade.reviewNotes || frontendTrade.review?.content || null,
       errorCategory: frontendTrade.errorCategory || null,
       emotion: frontendTrade.emotion || null,
-      selfRating: frontendTrade.selfRating !== null && frontendTrade.selfRating !== undefined 
-        ? parseFloat(frontendTrade.selfRating) 
+      selfRating: frontendTrade.selfRating !== null && frontendTrade.selfRating !== undefined
+        ? parseFloat(frontendTrade.selfRating)
         : null,
       exitReason: frontendTrade.exitReason || null,
-      // 其他欄位根據 API 需求添加
+      // 同時建立首筆倉位（atomic，後端在 transaction 中一起寫入）
+      ...(frontendTrade.firstPosition && { firstPosition: frontendTrade.firstPosition }),
+      // 同步補入金（atomic，後端在 transaction 中一起寫入）
+      ...(frontendTrade.deposit && { deposit: frontendTrade.deposit }),
     }
   },
 }
