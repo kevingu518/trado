@@ -251,9 +251,27 @@ const Strategies = () => {
           <Empty description="載入策略失敗，請稍後再試" />
         </div>
       ) : strategiesList.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <Empty description="尚無策略，點擊「新增策略」開始建立" />
-        </div>
+        <Row gutter={[16, 16]} className="Strategies-list">
+          <Col xs={24} sm={12} md={12} lg={8} xl={6}>
+            <div
+              className="Strategies-ghost-card"
+              style={{ '--ghost-primary': theme.primary, '--ghost-primary-dark': theme.primaryDark }}
+              onClick={handleOpenAddModal}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleOpenAddModal()
+                }
+              }}
+            >
+              <PlusOutlined className="Strategies-ghost-icon" />
+              <span className="Strategies-ghost-label">新增策略</span>
+              <span className="Strategies-ghost-hint">還可建立 {maxStrategies - strategyCount} 個</span>
+            </div>
+          </Col>
+        </Row>
       ) : displayList.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <Empty description="沒有符合條件的策略，試試調整篩選" />
