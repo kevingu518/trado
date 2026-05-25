@@ -11,23 +11,23 @@ const ProtectedRoute = memo(({ children }) => {
   const location = useLocation();
   
   // 如果 persist 還沒完成重新水合，顯示載入狀態
-  // if (!isRehydrated || isLoading) {
-  //   return (
-  //     <div style={{ 
-  //       display: 'flex', 
-  //       justifyContent: 'center', 
-  //       alignItems: 'center', 
-  //       height: '100vh' 
-  //     }}>
-  //       <Spin size="large" />
-  //     </div>
-  //   );
-  // }
+  if (!isRehydrated || isLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh'
+      }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
-  // // 檢查 token 是否存在且有效
-  // if (!isAuthenticated) {
-  //   return <Navigate to="/auth/login" replace />;
-  // }
+  // 檢查 token 是否存在且有效
+  if (!isAuthenticated) {
+    return <Navigate to="/auth/login" replace />;
+  }
 
   return children;
 });

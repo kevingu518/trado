@@ -31,7 +31,7 @@ function App() {
           <Routes>
             {/* 認證相關路由 - 公開路由 */}
             <Route path="/auth" element={<AuthLayout />}>
-              <Route index element={<Navigate to="/login" replace />} />
+              <Route index element={<Navigate to="/auth/login" replace />} />
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
               <Route path="forgot-password" element={<ForgotPassword />} />
@@ -46,7 +46,7 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              {/* <Route index element={<Navigate to="/dashboard" replace />} /> */}
+              <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="trades" element={<Trades />} />
               <Route path="transactions" element={<Transactions />} />
