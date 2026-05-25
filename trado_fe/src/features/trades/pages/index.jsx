@@ -1010,9 +1010,9 @@ const Transactions = () => {
                 { label: '每日進出', value: 'daily' },
               ]}
             />
-            {viewMode === 'trades' && (
+            {/* {viewMode === 'trades' && (
               <span className='text-body2 font-bold font-serif ml-base'>本日剩餘紀錄次數 43 / 50</span>
-            )}
+            )} */}
           </div>
           {viewMode === 'trades' && (
             <Button
