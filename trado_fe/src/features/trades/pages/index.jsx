@@ -234,10 +234,15 @@ const Transactions = () => {
   useShortcut('trades-row-first', () => {
     if (!displayData.length) return
     setFocusedRowKey(displayData[0].key)
+    // 同時模擬 Home 的捲動行為：把表格容器歸零，讓 sticky thead 回到自然位置，不會壓到第一列
+    const container = document.querySelector('.Transactions .container')
+    if (container) container.scrollTop = 0
   }, { enabled: tradesNavEnabled, deps: [displayData, tradesNavEnabled] })
   useShortcut('trades-row-last', () => {
     if (!displayData.length) return
     setFocusedRowKey(displayData[displayData.length - 1].key)
+    const container = document.querySelector('.Transactions .container')
+    if (container) container.scrollTop = container.scrollHeight
   }, { enabled: tradesNavEnabled, deps: [displayData, tradesNavEnabled] })
   useShortcut('trades-row-open', () => {
     if (focusedRowKey == null) return

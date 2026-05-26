@@ -17,8 +17,8 @@ export const SHORTCUT_REGISTRY = [
   { id: 'trades-action-cycle', keys: 'a', display: 'A', scope: SCOPE.TRADES, description: '切換動作（全部 / 買進 / 賣出，僅每日進出）' },
   { id: 'trades-row-up', keys: 'up', display: '↑', scope: SCOPE.TRADES, description: '焦點移到上一列' },
   { id: 'trades-row-down', keys: 'down', display: '↓', scope: SCOPE.TRADES, description: '焦點移到下一列' },
-  { id: 'trades-row-first', keys: 'pageup', display: 'fn+↑', scope: SCOPE.TRADES, description: '焦點移到當前頁第一列' },
-  { id: 'trades-row-last', keys: 'pagedown', display: 'fn+↓', scope: SCOPE.TRADES, description: '焦點移到當前頁最後一列' },
+  { id: 'trades-row-first', keys: 'pageup, home', display: 'fn+↑ / fn+←', scope: SCOPE.TRADES, description: '焦點移到當前頁第一列' },
+  { id: 'trades-row-last', keys: 'pagedown, end', display: 'fn+↓ / fn+→', scope: SCOPE.TRADES, description: '焦點移到當前頁最後一列' },
   { id: 'trades-row-open', keys: 'enter', display: 'Enter', scope: SCOPE.TRADES, description: '開啟焦點列（交易：詳情抽屜 / 每日：展開該日）' },
 ]
 
