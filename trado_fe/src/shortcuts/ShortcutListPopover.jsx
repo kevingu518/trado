@@ -1,8 +1,6 @@
 import React from 'react'
 import { Popover, Button, Tag } from 'antd'
 import { ThunderboltOutlined } from '@ant-design/icons'
-import PerfectScrollbar from 'react-perfect-scrollbar'
-import 'react-perfect-scrollbar/dist/css/styles.css'
 import { SHORTCUT_REGISTRY } from './shortcutRegistry'
 import { SCOPE_LABELS } from './scopes'
 import { useShortcutSettings } from './ShortcutSettingsContext'
@@ -30,7 +28,7 @@ const ShortcutListPopover = () => {
   }, {})
 
   const content = (
-    <PerfectScrollbar style={{ width: 260, maxHeight: 360 }}>
+    <div className="thin-scrollbar" style={{ width: 260, maxHeight: 360, overflowY: 'auto' }}>
       {!settings.enabled && (
         <div style={{
           fontSize: 12,
@@ -76,7 +74,7 @@ const ShortcutListPopover = () => {
           </div>
         )
       })}
-    </PerfectScrollbar>
+    </div>
   )
 
   return (
