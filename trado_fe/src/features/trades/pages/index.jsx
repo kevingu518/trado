@@ -2,10 +2,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import dayjs from 'dayjs'
 
-import { Table, Tag, Button, Space, message, Card, Row, Col, Switch, Rate, Tooltip, DatePicker, Select, Input, Pagination, Tabs, Statistic, Dropdown, Segmented } from 'antd'
+import { Table, Tag, Button, Space, message, Card, Row, Col, Tooltip, DatePicker, Select, Input, Pagination, Statistic, Dropdown, Segmented } from 'antd'
 
 const { Option } = Select;
-const { TabPane } = Tabs;
 import { EllipsisOutlined,EditOutlined, EyeOutlined, PlusOutlined, CheckOutlined, CloseOutlined, MinusOutlined, FileTextOutlined, ClockCircleOutlined, DollarOutlined, ClearOutlined, ToolOutlined} from '@ant-design/icons'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css';
@@ -19,7 +18,6 @@ import { useShortcut } from '@/shortcuts'
 import AddTradeModal from '../components/AddTradeModal'
 import AddPositionModal from '../components/AddPositionModal'
 import TradeDrawer from '../components/TradeDrawer'
-import KLineChart from '../components/KLineChart'
 import DailyPositionsView from '../components/DailyPositionsView'
 
 const { RangePicker } = DatePicker;
@@ -50,7 +48,6 @@ const Transactions = () => {
   const [addTradeModalVisible, setAddTradeModalVisible] = useState(false)
   const [editingTrade, setEditingTrade] = useState(null) // 正在編輯的交易資料
   const [selectedRecord, setSelectedRecord] = useState(null)
-  const [expandedRowKeys, setExpandedRowKeys] = useState([])
   // 鍵盤導覽：被「框選」的列 key（null 表示尚未選中任何列）
   const [focusedRowKey, setFocusedRowKey] = useState(null)
   const [pagination, setPagination] = useState({
@@ -250,32 +247,6 @@ const Transactions = () => {
     if (record) handleView(record)
   }, { enabled: tradesNavEnabled, deps: [displayData, focusedRowKey, tradesNavEnabled] })
 
-  // -------------------------   configs   ----------------------------
-  // 錯誤分類選項（對應後端 ErrorCategory enum）
-  const errorCategories = [
-    { value: 'ENTRY_TIMING', label: '進場時機錯誤' },
-    { value: 'EXIT_TIMING', label: '出場時機錯誤' },
-    { value: 'POSITION_SIZE', label: '部位大小錯誤' },
-    { value: 'EMOTION_CONTROL', label: '情緒控制問題' },
-    { value: 'STRATEGY_DEVIATION', label: '偏離策略' },
-    { value: 'RISK_MANAGEMENT', label: '風險管理不當' },
-    { value: 'MARKET_ANALYSIS', label: '市場分析錯誤' },
-    { value: 'OTHER', label: '其他' }
-  ]
-
-  // 情緒選項（對應後端 Emotion enum）
-  const emotions = [
-    { value: 'CALM', label: '冷靜', color: '#1890ff' },
-    { value: 'ANXIOUS', label: '焦慮', color: '#faad14' },
-    { value: 'EXCITED', label: '興奮', color: '#eb2f96' },
-    { value: 'FEARFUL', label: '恐懼', color: CLR_DOWN },
-    { value: 'GREEDY', label: '貪婪', color: '#ff7a45' },
-    { value: 'CONFIDENT', label: '自信', color: CLR_UP },
-    { value: 'DOUBTFUL', label: '懷疑', color: '#fa8c16' },
-    { value: 'FRUSTRATED', label: '挫折', color: '#722ed1' },
-    { value: 'IMPATIENT', label: '不耐煩', color: '#f5222d' },
-    { value: 'NEUTRAL', label: '中性', color: '#8c8c8c' }
-  ]
   // -------------------------   functions   ----------------------------
   // 處理新增交易 - 彈出新增 trade modal
   const handleAdd = () => {
@@ -575,198 +546,6 @@ const Transactions = () => {
     await refetchTrades()
   }
 
-  // 處理行展開
-  const handleExpand = (expanded, record) => {
-    if (expanded) {
-      setExpandedRowKeys([...expandedRowKeys, record.key])
-    } else {
-      setExpandedRowKeys(expandedRowKeys.filter(key => key !== record.key))
-    }
-  }
-
-  // 修改展開內容組件
-  const expandedRowRender = (record) => {
-    return (
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '16px' }} className='expandedRow Transactions-expandedRow'>
-        <Tabs defaultActiveKey="positions" size="small">
-          <TabPane tab="倉位記錄" key="positions">
-            <Table
-              className='my-sm'
-              rowClassName=""
-              columns={[
-                { title: '日期', dataIndex: 'date', key: 'date', width: 120 },
-                { 
-                  title: '動作', 
-                  dataIndex: 'action', 
-                  key: 'action', 
-                  width: 80,
-                  render: (action) => (
-                    <Tag color={action === 'buy' ? 'green' : 'red'}>
-                      {action === 'buy' ? '買入' : '賣出'}
-                    </Tag>
-                  )
-                },
-                { 
-                  title: '價格', 
-                  dataIndex: 'price', 
-                  key: 'price', 
-                  width: 100,
-                  render: (price) => `$${price}`
-                },
-                { 
-                  title: '數量', 
-                  dataIndex: 'shares', 
-                  key: 'shares', 
-                  width: 100,
-                  render: (shares) => shares.toLocaleString()
-                },
-                { 
-                  title: '停損價', 
-                  dataIndex: 'stopLoss', 
-                  key: 'stopLoss', 
-                  width: 100,
-                  render: (stopLoss) => stopLoss ? `$${stopLoss}` : '-'
-                },
-                { title: '備註', dataIndex: 'note', key: 'note', width: 200 },
-              ]}
-              dataSource={record.positionAdjustments || []}
-              pagination={false}
-              size='small'
-            />
-          </TabPane>
-          
-          <TabPane tab="K 線圖" key="kline">
-            <KLineChart 
-              symbol={record.symbol} 
-              positions={record.positionAdjustments || []}
-              height={500}
-            />
-          </TabPane>
-          
-          <TabPane tab="交易檢討" key="review">
-            <div className='relative' style={{ padding: '16px' }}>
-              {/* 蓋章樣式的紀律標記 */}
-              <div 
-                className='stamp-discipline absolute top-0 right-0 shadow-sm'
-                style={{
-                  background: record.followedDiscipline === 'pass'
-                    ? `linear-gradient(135deg, ${CLR_UP}, ${CLR_UP}dd)`
-                    : record.followedDiscipline === 'fail'
-                    ? `linear-gradient(135deg, ${CLR_DOWN}, ${CLR_DOWN}dd)`
-                    : 'linear-gradient(135deg, #faad14, #ffc53d)',
-                }}
-              >
-                <div className='lh-xs' style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                  {record.followedDiscipline === 'pass' ? '✓' : record.followedDiscipline === 'fail' ? '✗' : '?'}
-                </div>
-                <div style={{ fontSize: '10px' }}>
-                  {record.followedDiscipline === 'pass' ? '紀律' : record.followedDiscipline === 'fail' ? '沒紀律' : '未定'}
-                </div>
-              </div>
-              
-              <Row gutter={16}>
-                {/* 檢討內容 */}
-                <Col span={24} style={{ marginBottom: 16 }}>
-                  <div>
-                    <strong>檢討內容：</strong>
-                    <div style={{ 
-                      marginTop: 8, 
-                      padding: 8, 
-                      background: '#f5f5f5', 
-                      borderRadius: 4,
-                      minHeight: 60,
-                      border: '1px solid #d9d9d9'
-                    }}>
-                      {record.review?.content || record.reviewNotes || '尚未填寫檢討內容'}
-                    </div>
-                  </div>
-                </Col>
-
-                {/* 錯誤分類和情緒 */}
-                <Col span={12}>
-                  <div style={{ marginBottom: 16 }}>
-                    <strong>錯誤分類：</strong>
-                    <div style={{ marginTop: 4 }}>
-                      {record.review?.errorCategory || record.errorCategory ? (
-                        <Tag color="red">
-                          {errorCategories.find(cat => cat.value === (record.review?.errorCategory || record.errorCategory))?.label || (record.review?.errorCategory || record.errorCategory)}
-                        </Tag>
-                      ) : (
-                        <span style={{ color: '#999' }}>未選擇</span>
-                      )}
-                    </div>
-                  </div>
-                </Col>
-
-                <Col span={12}>
-                  <div style={{ marginBottom: 16 }}>
-                    <strong>當時情緒：</strong>
-                    <div style={{ marginTop: 4 }}>
-                      {record.review?.emotion || record.emotion ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div 
-                            style={{ 
-                              width: '12px', 
-                              height: '12px', 
-                              borderRadius: '50%', 
-                              backgroundColor: emotions.find(em => em.value === (record.review?.emotion || record.emotion))?.color || '#666'
-                            }} 
-                          />
-                          <span>
-                            {emotions.find(em => em.value === (record.review?.emotion || record.emotion))?.label || (record.review?.emotion || record.emotion)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#999' }}>未選擇</span>
-                      )}
-                    </div>
-                  </div>
-                </Col>
-
-                {/* 是否遵守紀律 */}
-                <Col span={12}>
-                  <div style={{ marginBottom: 16 }}>
-                    <strong>是否遵守紀律：</strong>
-                    <div style={{ marginTop: 4 }}>
-                      <Switch 
-                        checked={record.followedDiscipline === 'pass'}
-                        checkedChildren="是" 
-                        unCheckedChildren="否"
-                        disabled
-                      />
-                      <span style={{ marginLeft: 8, fontSize: '12px', color: '#666' }}>
-                        {record.followedDiscipline === 'pass' ? '是' : record.followedDiscipline === 'fail' ? '否' : '未處理'}
-                      </span>
-                    </div>
-                  </div>
-                </Col>
-
-                {/* 自我評分 */}
-                <Col span={12}>
-                  <div style={{ marginBottom: 16 }}>
-                    <strong>自我評分：</strong>
-                    <div style={{ marginTop: 4 }}>
-                      {record.review?.selfRating || record.selfRating ? (
-                        <Rate 
-                          value={record.review?.selfRating || record.selfRating}
-                          disabled
-                          allowHalf={false}
-                          count={5}
-                        />
-                      ) : (
-                        <span style={{ color: '#999' }}>未評分</span>
-                      )}
-                    </div>
-                  </div>
-                </Col>
-              </Row>
-            </div>
-          </TabPane>
-        </Tabs>
-      </div>
-    )
-  }
-
   // 獲取唯一的股票號碼列表（用於下拉選單選項）
   // 注意：這裡只會取得當前頁面的選項，如需完整選項應從 API 取得
   const getUniqueSymbols = () => {
@@ -876,21 +655,43 @@ const Transactions = () => {
       render: (entryCount) => entryCount || 0,
     },
     {
-      title: '結果',
-      dataIndex: 'profitLoss',
-      key: 'profitLoss',
+      title: '現價',
+      dataIndex: 'currentPrice',
+      key: 'currentPrice',
+      width: 90,
+      align: 'right',
+      render: (currentPrice, record) => {
+        if (record.status !== 'open') return <span style={{ color: '#999' }}>-</span>
+        if (currentPrice == null) return <span style={{ color: '#999' }}>-</span>
+        return <span>${currentPrice.toFixed(2)}</span>
+      },
+    },
+    {
+      title: '盈虧',
+      key: 'pnl',
       // 不設 width，讓它自動擴展佔用剩餘空間
       align: 'right',
-      sorter: (a, b) => (a.profitLoss || 0) - (b.profitLoss || 0),
-      render: (profitLoss) => {
-        if (profitLoss === null) return <span style={{ color: '#999' }}>-</span>
-        const isProfit = profitLoss > 0
+      sorter: (a, b) => {
+        const av = a.status === 'open' ? (a.unrealizedPnL ?? -Infinity) : (a.profitLoss ?? -Infinity)
+        const bv = b.status === 'open' ? (b.unrealizedPnL ?? -Infinity) : (b.profitLoss ?? -Infinity)
+        return av - bv
+      },
+      render: (_, record) => {
+        const isOpen = record.status === 'open'
+        const value = isOpen ? record.unrealizedPnL : record.profitLoss
+        if (value == null) return <span style={{ color: '#999' }}>-</span>
+        const isProfit = value > 0
         return (
-          <span style={{
-            color: isProfit ? CLR_UP : CLR_DOWN,
-            fontWeight: 'bold'
-          }}>
-            {profitLoss > 0 ? '+' : ''}{profitLoss.toLocaleString()} 元
+          <span>
+            {isOpen && (
+              <Tag color="orange" style={{ marginInlineEnd: 4 }}>浮</Tag>
+            )}
+            <span style={{
+              color: isProfit ? CLR_UP : CLR_DOWN,
+              fontWeight: 'bold'
+            }}>
+              {value > 0 ? '+' : ''}{value.toLocaleString()} 元
+            </span>
           </span>
         )
       },
@@ -1163,22 +964,8 @@ const Transactions = () => {
                 tableLayout='auto'
                 scroll={{ x: 'max-content' }}
                 rowClassName={(record) => record.key === focusedRowKey ? 'Transactions-row-focused' : ''}
-                expandable={{
-                  expandedRowRender,
-                  expandedRowKeys,
-                  onExpand: handleExpand,
-                  expandRowByClick: true,
-                  showExpandColumn: false,
-                }}
                 onRow={(record) => ({
-                  onClick: (e) => {
-                    // 如果按了 Ctrl (Windows/Linux) 或 Cmd (Mac)
-                    if (e.ctrlKey || e.metaKey) {
-                      e.stopPropagation() // 阻止展開 row
-                      handleView(record) // 打開 drawer
-                    }
-                    // 如果沒有按 Ctrl，保持原本的展開行為（expandRowByClick 會處理）
-                  },
+                  onClick: () => handleView(record),
                 })}
                 pagination={false}
                 />
@@ -1197,11 +984,20 @@ const Transactions = () => {
                 className="useBaseline gap-sm flex-1"
               />
               <Statistic
-                title="本頁盈虧"
+                title="本頁已實現"
                 value={displayData.reduce((sum, d) => sum + (d.profitLoss || 0), 0)}
                 precision={0}
                 valueStyle={{
                   color: displayData.reduce((sum, d) => sum + (d.profitLoss || 0), 0) > 0 ? CLR_UP : CLR_DOWN
+                }}
+                className="useBaseline gap-sm flex-1"
+              />
+              <Statistic
+                title="本頁未實現"
+                value={displayData.reduce((sum, d) => sum + (d.status === 'open' ? (d.unrealizedPnL || 0) : 0), 0)}
+                precision={0}
+                valueStyle={{
+                  color: displayData.reduce((sum, d) => sum + (d.status === 'open' ? (d.unrealizedPnL || 0) : 0), 0) > 0 ? CLR_UP : CLR_DOWN
                 }}
                 className="useBaseline gap-sm flex-1"
               />

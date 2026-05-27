@@ -7,6 +7,7 @@ import {
 import { SaveOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useTrade } from '../hooks/useTrade'
+import KLineChart from './KLineChart'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -428,6 +429,15 @@ const TradeDrawer = ({
         </div>
       ) : tradeData ? (
         <div>
+          {/* K 線圖 */}
+          <Card title="K 線圖" size="small" style={{ marginBottom: 16 }}>
+            <KLineChart
+              symbol={tradeData.symbol}
+              positions={positionAdjustments}
+              height={400}
+            />
+          </Card>
+
           {/* 第一行：基本資訊、持倉統計、盈虧分析 */}
           <Row gutter={16} style={{ marginBottom: 16 }}>
             {/* 基本資訊 */}
@@ -501,12 +511,33 @@ const TradeDrawer = ({
               </Card>
             </Col>
 
-            {/* 盈虧分析（使用後端欄位） */}
+            {/* 盈虧分析（區分已實現 / 未實現） */}
             <Col span={8}>
               <Card title="盈虧分析" size="small" style={{ height: '100%' }}>
                 <Descriptions column={1} size="small">
-                  <Descriptions.Item label="盈虧金額">
-                    <span style={{ 
+                  {/* 未實現（僅 open 顯示） */}
+                  {tradeData.status === 'open' && (
+                    <Descriptions.Item label="現價">
+                      {tradeData.currentPrice != null
+                        ? <span style={{ fontWeight: 'bold' }}>${parseFloat(tradeData.currentPrice).toFixed(2)}</span>
+                        : <span style={{ color: '#999' }}>尚未取得（等收盤後）</span>}
+                    </Descriptions.Item>
+                  )}
+                  {tradeData.status === 'open' && (
+                    <Descriptions.Item label="未實現盈虧">
+                      {tradeData.unrealizedPnL != null
+                        ? (
+                          <span style={{ color: pnlColor(tradeData.unrealizedPnL), fontWeight: 'bold' }}>
+                            {tradeData.unrealizedPnL > 0 ? '+' : ''}{tradeData.unrealizedPnL.toLocaleString()} 元
+                          </span>
+                        )
+                        : <span style={{ color: '#999' }}>-</span>}
+                    </Descriptions.Item>
+                  )}
+
+                  {/* 已實現（兩種狀態皆顯示，但 open 多半是 0） */}
+                  <Descriptions.Item label="已實現盈虧">
+                    <span style={{
                       color: pnlColor(tradeData.profitLoss),
                       fontWeight: 'bold'
                     }}>
@@ -514,7 +545,7 @@ const TradeDrawer = ({
                     </span>
                   </Descriptions.Item>
                   <Descriptions.Item label="盈虧比例">
-                    <span style={{ 
+                    <span style={{
                       color: (tradeData.profitLossRatio || 0) >= 0 ? CLR_UP : CLR_DOWN,
                       fontWeight: 'bold'
                     }}>
@@ -534,14 +565,6 @@ const TradeDrawer = ({
                     }}>
                       {tradeData.netProfitLoss > 0 ? '+' : ''}{tradeData.netProfitLoss?.toLocaleString() || 0} 元
                     </span>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="總成本">
-                    {(() => {
-                      const totalBuyCost = (tradeData.positionAdjustments || [])
-                        .filter(p => p.action === 'buy')
-                        .reduce((sum, p) => sum + (p.shares || 0) * (p.price || 0), 0)
-                      return totalBuyCost > 0 ? `${Math.round(totalBuyCost).toLocaleString()} 元` : '-'
-                    })()}
                   </Descriptions.Item>
                 </Descriptions>
               </Card>

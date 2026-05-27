@@ -1,7 +1,47 @@
 import prisma from '../config/database.js';
 import { NotFoundError, AppError } from '../errors/index.js';
 import AccountService from './AccountService.js';
+import StockPriceService from './StockPriceService.js';
 import { calculateFee, calculateTax } from '../utils/feeCalculator.js';
+
+/**
+ * 對一批 trades 加上 currentPrice / unrealizedPnL
+ * - 只有 status='open' 且 totalShares > 0 且有 avgPrice 才計算
+ * - currentPrice 為 null 時（尚無 cache），unrealizedPnL 也為 null
+ */
+const enrichWithCurrentPrice = async (trades) => {
+  const openSymbols = [
+    ...new Set(
+      trades
+        .filter((t) => t.status === 'open' && (t.totalShares || 0) > 0)
+        .map((t) => t.symbol)
+        .filter(Boolean)
+    ),
+  ];
+  if (openSymbols.length === 0) {
+    return trades.map((t) => ({ ...t, currentPrice: null, unrealizedPnL: null }));
+  }
+
+  const latest = await StockPriceService.getLatest(openSymbols);
+
+  return trades.map((trade) => {
+    if (trade.status !== 'open' || !trade.totalShares || trade.totalShares <= 0) {
+      return { ...trade, currentPrice: null, unrealizedPnL: null };
+    }
+    const priceInfo = latest[trade.symbol];
+    if (!priceInfo) {
+      return { ...trade, currentPrice: null, unrealizedPnL: null };
+    }
+    const currentPrice = priceInfo.close;
+    const avgPrice = trade.avgPrice != null ? Number(trade.avgPrice) : 0;
+    if (!avgPrice) {
+      return { ...trade, currentPrice, unrealizedPnL: null };
+    }
+    const sign = trade.direction === 'short' ? -1 : 1;
+    const unrealizedPnL = Math.round(sign * (currentPrice - avgPrice) * trade.totalShares);
+    return { ...trade, currentPrice, unrealizedPnL };
+  });
+};
 
 class TradeService {
   async getAllTrades(userId, options = {}) {
@@ -102,10 +142,13 @@ class TradeService {
       };
     });
 
+    // 對 open trades 補上 currentPrice / unrealizedPnL（純 DB read，不會觸發外部 API）
+    const enriched = await enrichWithCurrentPrice(tradesWithMetrics);
+
     const totalPages = Math.ceil(total / limitNum);
 
     return {
-      trades: tradesWithMetrics,
+      trades: enriched,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -148,7 +191,8 @@ class TradeService {
       throw new AppError('Access denied', 403);
     }
 
-    return trade;
+    const [enriched] = await enrichWithCurrentPrice([trade]);
+    return enriched;
   }
 
   async createTrade(data, userId) {

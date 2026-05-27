@@ -247,3 +247,20 @@ model BalanceSnapshot {
   @@unique([userId, date])
   @@index([userId, date])
 }
+
+// 個股每日 OHLCV — 多用戶共用、不掛 userId
+model StockPrice {
+  symbol    String   @db.VarChar(20)
+  date      DateTime @db.Date
+  open      Decimal  @db.Decimal(18, 2)
+  high      Decimal  @db.Decimal(18, 2)
+  low       Decimal  @db.Decimal(18, 2)
+  close     Decimal  @db.Decimal(18, 2)
+  volume    BigInt   @default(0)              // 成交股數
+  source    String   @db.VarChar(10)          // "TWSE" | "TPEX"
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @db.Timestamp(6)
+
+  @@id([symbol, date])
+  @@index([symbol, date])
+}

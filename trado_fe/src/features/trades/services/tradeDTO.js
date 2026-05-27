@@ -111,6 +111,10 @@ export const tradeDTO = {
       totalFee: apiTrade.totalFee !== null ? parseFloat(apiTrade.totalFee) : null,
       totalTax: apiTrade.totalTax !== null ? parseFloat(apiTrade.totalTax) : null,
       netProfitLoss: apiTrade.netProfitLoss !== null ? parseFloat(apiTrade.netProfitLoss) : null,
+
+      // 未實現盈虧（僅 open trade 有值；backend 收盤後 cron 抓 close 算出）
+      currentPrice: apiTrade.currentPrice != null ? parseFloat(apiTrade.currentPrice) : null,
+      unrealizedPnL: apiTrade.unrealizedPnL != null ? parseFloat(apiTrade.unrealizedPnL) : null,
       
       // 檢討（以後端欄位為主）
       reviewNotes: apiTrade.reviewNotes || '',
