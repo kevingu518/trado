@@ -2,6 +2,7 @@ import prisma from '../config/database.js';
 import { NotFoundError, AppError } from '../errors/index.js';
 import AccountService from './AccountService.js';
 import StockPriceService from './StockPriceService.js';
+import strategyService from './StrategyService.js';
 import { calculateFee, calculateTax } from '../utils/feeCalculator.js';
 
 /**
@@ -405,6 +406,9 @@ class TradeService {
     }
 
     const directionChanged = updateData.direction && updateData.direction !== trade.direction;
+    const strategyIdChanged =
+      updateData.strategyId !== undefined && updateData.strategyId !== trade.strategyId;
+    const previousStrategyId = trade.strategyId;
 
     await prisma.trade.update({
       where: { id },
@@ -412,8 +416,20 @@ class TradeService {
     });
 
     // direction 變更會影響 entryCount（多單算 buy、空單算 sell），重算 metrics
+    // calculateTradeMetrics 內部會刷新「目前」綁定的策略；若 strategyId 從 A 變 B，
+    // 還要額外刷新 A，避免 A 的快照保留已搬走的交易。
     if (directionChanged) {
       await this.calculateTradeMetrics(id);
+    }
+
+    if (strategyIdChanged) {
+      try {
+        await strategyService.refreshSnapshotsForStrategies(
+          [previousStrategyId, updateData.strategyId].filter(Boolean)
+        );
+      } catch (err) {
+        console.error('[TradeService] Failed to refresh strategy snapshot:', err.message);
+      }
     }
 
     return await prisma.trade.findUnique({
@@ -441,9 +457,18 @@ class TradeService {
       throw new AppError('Access denied', 403);
     }
 
+    // 刪除前先收集綁定的策略 ID，刪除後刷新這些策略的快照
+    const linkedStrategyIds = await strategyService.getLinkedStrategyIds(id);
+
     await prisma.trade.delete({
       where: { id },
     });
+
+    try {
+      await strategyService.refreshSnapshotsForStrategies(linkedStrategyIds);
+    } catch (err) {
+      console.error('[TradeService] Failed to refresh strategy snapshot:', err.message);
+    }
 
     return { message: 'Trade deleted successfully' };
   }
@@ -632,6 +657,14 @@ class TradeService {
       } catch (err) {
         console.error('[TradeService] Failed to update snapshot:', err.message);
       }
+    }
+
+    // 同步刷新此交易綁定的策略績效快照（status / netProfitLoss 可能已變動）
+    try {
+      const ids = await strategyService.getLinkedStrategyIds(tradeId);
+      await strategyService.refreshSnapshotsForStrategies(ids);
+    } catch (err) {
+      console.error('[TradeService] Failed to refresh strategy snapshot:', err.message);
     }
 
     return {

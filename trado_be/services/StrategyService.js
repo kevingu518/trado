@@ -510,6 +510,37 @@ class StrategyService {
 
     return strategy;
   }
+
+  /**
+   * 取得指定交易已綁定的所有策略 ID（包含 Trade.strategyId 與 TradeStrategy 關聯表）
+   */
+  async getLinkedStrategyIds(tradeId) {
+    const trade = await prisma.trade.findUnique({
+      where: { id: tradeId },
+      select: {
+        strategyId: true,
+        strategies: { select: { strategyId: true } },
+      },
+    });
+    if (!trade) return [];
+    const ids = [trade.strategyId, ...trade.strategies.map((s) => s.strategyId)].filter(Boolean);
+    return [...new Set(ids)];
+  }
+
+  /**
+   * 重算指定策略的當前快照，個別失敗不會中斷其他策略
+   */
+  async refreshSnapshotsForStrategies(strategyIds) {
+    const unique = [...new Set((strategyIds || []).filter(Boolean))];
+    if (unique.length === 0) return;
+    await Promise.all(
+      unique.map((id) =>
+        this.calculateAndCreateSnapshot(id).catch((err) => {
+          console.error(`[StrategyService] Failed to refresh snapshot for ${id}:`, err.message);
+        })
+      )
+    );
+  }
 }
 
 export default new StrategyService();
