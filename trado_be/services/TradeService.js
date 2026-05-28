@@ -54,6 +54,7 @@ class TradeService {
       direction,
       startDate,
       endDate,
+      strategy,
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = options;
@@ -87,6 +88,13 @@ class TradeService {
       ...(symbol && { symbol }),
       ...(direction && ['long', 'short'].includes(direction) && { direction }),
       ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
+      // 策略篩選：同時涵蓋 Trade.strategyId（直接綁定）與 TradeStrategy 關聯表
+      ...(strategy && {
+        OR: [
+          { strategyId: strategy },
+          { strategies: { some: { strategyId: strategy } } },
+        ],
+      }),
     };
 
     // 建立排序條件

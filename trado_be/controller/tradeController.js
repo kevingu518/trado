@@ -18,6 +18,7 @@ class TradeController {
       direction,
       startDate,
       endDate,
+      strategy,
       sortBy,
       sortOrder,
     } = req.query;
@@ -30,6 +31,7 @@ class TradeController {
       direction,
       startDate,
       endDate,
+      strategy,
       sortBy,
       sortOrder,
     });
