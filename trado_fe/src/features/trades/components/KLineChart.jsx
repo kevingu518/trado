@@ -230,6 +230,13 @@ const KLineChart = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // height prop 變化時同步給 chart（外層 layout 切寬窄 / window resize 時用）
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.applyOptions({ height })
+    }
+  }, [height])
+
   // 把 API row 轉成 lightweight-charts series 格式
   const toBars = (rows) =>
     (rows || []).map((r) => ({

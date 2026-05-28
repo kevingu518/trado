@@ -6,6 +6,7 @@ import {
 } from 'antd'
 import { SaveOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import PerfectScrollbar from 'react-perfect-scrollbar'
 import { useTrade } from '../hooks/useTrade'
 import KLineChart from './KLineChart'
 
@@ -93,6 +94,23 @@ const TradeDrawer = ({
   const CLR_DOWN = root.getPropertyValue('--color-down').trim()
   const CLR_NONE = '#666'
   const pnlColor = (v) => v > 0 ? CLR_UP : v < 0 ? CLR_DOWN : CLR_NONE
+
+  // 監聽 viewport：寬螢幕 (>=1280) 切左右分欄、K 線填滿左欄高度；窄螢幕保持上下擺
+  const [viewport, setViewport] = useState(() => ({
+    vw: typeof window !== 'undefined' ? window.innerWidth : 1440,
+    vh: typeof window !== 'undefined' ? window.innerHeight : 900,
+  }))
+  useEffect(() => {
+    const handler = () => setViewport({ vw: window.innerWidth, vh: window.innerHeight })
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  const isWideLayout = viewport.vw >= 1280
+  const drawerWidth = isWideLayout ? Math.min(viewport.vw * 0.9, 1600) : 1000
+  // K 線高度綁寬度（≈ 3:2 含成交量副圖），避免綁 viewport.vh 造成主圖被撐成正方形、趨勢失真
+  // 左欄寬 = (drawer 內容寬 - drawer padding 32 - gap 16) × 45% - card body padding 24
+  const leftPaneInnerWidth = isWideLayout ? (drawerWidth - 32 - 16) * 0.45 - 24 : 0
+  const wideChartHeight = Math.max(Math.round(leftPaneInnerWidth / 1.5), 380)
 
   // 使用 useTrade hook 獲取交易詳情
   const { data: tradeData, loading: tradeLoading, error: tradeError, refetch: refetchTrade } = useTrade(tradeId, visible)
@@ -380,7 +398,7 @@ const TradeDrawer = ({
     <Drawer
       title="交易詳情"
       placement="right"
-      width={1000}
+      width={drawerWidth}
       onClose={onClose}
       open={visible}
       className="TradeDrawer"
@@ -388,6 +406,7 @@ const TradeDrawer = ({
         header: 'py-base px-md',
         body: 'p-md',
       }}
+      styles={isWideLayout ? { body: { overflow: 'hidden' } } : undefined}
       getContainer={false}
       extra={
         <Space>
@@ -428,17 +447,32 @@ const TradeDrawer = ({
           <Spin size="large" />
         </div>
       ) : tradeData ? (
-        <div>
-          {/* K 線圖 */}
-          <Card title="K 線圖" size="small" style={{ marginBottom: 16 }}>
-            <KLineChart
-              symbol={tradeData.symbol}
-              positions={positionAdjustments}
-              height={400}
-            />
-          </Card>
+        <div style={isWideLayout ? { display: 'flex', gap: 16, height: '100%' } : undefined}>
+          {/* 左欄（wide）/ 上方（narrow）：K 線圖 */}
+          <div style={isWideLayout
+            ? { flex: '0 0 45%', minWidth: 0, display: 'flex', flexDirection: 'column' }
+            : { display: 'contents' }}>
+            <Card
+              title="K 線圖"
+              size="small"
+              style={isWideLayout ? { marginBottom: 0, flexShrink: 0 } : { marginBottom: 16 }}
+            >
+              <KLineChart
+                symbol={tradeData.symbol}
+                positions={positionAdjustments}
+                height={isWideLayout ? wideChartHeight : 400}
+              />
+            </Card>
+          </div>
 
-          {/* 第一行：基本資訊、持倉統計、盈虧分析 */}
+          {/* 右欄（wide）/ 下方（narrow）：資訊區（wide 時 PerfectScrollbar 獨立捲動，suppress 水平 scroll） */}
+          <PerfectScrollbar
+            options={{ suppressScrollX: true, wheelPropagation: false }}
+            style={isWideLayout
+              ? { flex: 1, minWidth: 0, paddingRight: 4 }
+              : undefined}
+          >
+            {/* 第一行：基本資訊、持倉統計、盈虧分析 */}
           <Row gutter={16} style={{ marginBottom: 16 }}>
             {/* 基本資訊 */}
             <Col span={8}>
@@ -717,6 +751,7 @@ const TradeDrawer = ({
               </Col>
             </Row>
           </Card>
+          </PerfectScrollbar>
         </div>
       ) : null}
     </Drawer>
