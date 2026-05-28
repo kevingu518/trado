@@ -34,6 +34,7 @@ const KLineChart = ({
   const chartContainerRef = useRef(null)
   const chartRef = useRef(null)
   const candlestickSeriesRef = useRef(null)
+  const volumeSeriesRef = useRef(null)
   const maSeriesRef = useRef({}) // { [period]: ISeriesApi }
   const priceLinesRef = useRef([])
   // 完整 klineData（給 loadOlder 用來 merge / 重算 MA）
@@ -170,6 +171,19 @@ const KLineChart = ({
       wickUpColor: '#26a69a',
       wickDownColor: '#ef5350',
     })
+    // 上方 K 棒留 25% 給下方成交量
+    candlestickSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.05, bottom: 0.28 },
+    })
+
+    // 成交量：overlay histogram，畫在底部 25% 區域
+    const volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: '', // overlay（不掛在左右兩邊的價格軸）
+    })
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.75, bottom: 0 },
+    })
 
     // 均線（依 MA_CONFIG 動態建立；visibility 由獨立 effect 依 enabledMAs 同步）
     const seriesMap = {}
@@ -183,6 +197,7 @@ const KLineChart = ({
     }
 
     candlestickSeriesRef.current = candlestickSeries
+    volumeSeriesRef.current = volumeSeries
     maSeriesRef.current = seriesMap
     chartRef.current = chart
 
@@ -226,9 +241,17 @@ const KLineChart = ({
       volume: r.volume,
     }))
 
-  // 套用 K 線資料（recompute 全部 MA，更新 legend）
+  // 套用 K 線資料（recompute 全部 MA，更新 legend、成交量）
   const applyChartData = (bars) => {
     candlestickSeriesRef.current.setData(bars)
+    // 成交量：顏色跟 K 棒一致（收紅 / 收綠），淡一點不搶 K 棒視覺
+    volumeSeriesRef.current?.setData(
+      bars.map((b) => ({
+        time: b.time,
+        value: b.volume ?? 0,
+        color: b.close >= b.open ? 'rgba(38,166,154,0.5)' : 'rgba(239,83,80,0.5)',
+      }))
+    )
     const nextValues = {}
     for (const { period } of MA_CONFIG) {
       const data = computeMA(bars, period)
