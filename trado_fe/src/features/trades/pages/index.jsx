@@ -655,7 +655,7 @@ const Transactions = () => {
       render: (entryCount) => entryCount || 0,
     },
     {
-      title: '現價',
+      title: '最新收盤',
       dataIndex: 'currentPrice',
       key: 'currentPrice',
       width: 90,
@@ -676,22 +676,20 @@ const Transactions = () => {
         const bv = b.status === 'open' ? (b.unrealizedPnL ?? -Infinity) : (b.profitLoss ?? -Infinity)
         return av - bv
       },
+      // 浮 / 實用視覺差異區分（持倉中=淡色 + 中等粗細；已平倉=飽和色 + bold），
+      // 因為「狀態」欄已有持倉中 / 已完成 tag，盈虧欄不再重複加「浮」標籤
       render: (_, record) => {
         const isOpen = record.status === 'open'
         const value = isOpen ? record.unrealizedPnL : record.profitLoss
         if (value == null) return <span style={{ color: '#999' }}>-</span>
         const isProfit = value > 0
         return (
-          <span>
-            {isOpen && (
-              <Tag color="orange" style={{ marginInlineEnd: 4 }}>浮</Tag>
-            )}
-            <span style={{
-              color: isProfit ? CLR_UP : CLR_DOWN,
-              fontWeight: 'bold'
-            }}>
-              {value > 0 ? '+' : ''}{value.toLocaleString()} 元
-            </span>
+          <span style={{
+            color: isProfit ? CLR_UP : CLR_DOWN,
+            fontWeight: isOpen ? 500 : 700,
+            opacity: isOpen ? 0.7 : 1,
+          }}>
+            {value > 0 ? '+' : ''}{value.toLocaleString()} 元
           </span>
         )
       },

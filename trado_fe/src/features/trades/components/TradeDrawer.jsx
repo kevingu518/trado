@@ -551,7 +551,7 @@ const TradeDrawer = ({
                 <Descriptions column={1} size="small">
                   {/* 未實現（僅 open 顯示） */}
                   {tradeData.status === 'open' && (
-                    <Descriptions.Item label="現價">
+                    <Descriptions.Item label="最新收盤">
                       {tradeData.currentPrice != null
                         ? <span style={{ fontWeight: 'bold' }}>${parseFloat(tradeData.currentPrice).toFixed(2)}</span>
                         : <span style={{ color: '#999' }}>尚未取得（等收盤後）</span>}
