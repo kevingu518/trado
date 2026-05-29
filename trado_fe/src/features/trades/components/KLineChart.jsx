@@ -50,6 +50,8 @@ const KLineChart = ({
   const [maValues, setMaValues] = useState({}) // { [period]: number }
   // 預設 5/10/20 開啟，45/60 預設關閉，使用者可從 legend 切換
   const [enabledMAs, setEnabledMAs] = useState({ 5: true, 10: true, 20: true, 45: false, 60: false })
+  // 進出場均價虛線（toggle，預設顯示）
+  const [showAvgLines, setShowAvgLines] = useState(true)
 
   // SMA(period)：對 close 做 N 日簡單移動平均
   const computeMA = (klineData, period) => {
@@ -329,32 +331,7 @@ const KLineChart = ({
           candlestickSeriesRef.current.setMarkers(markers)
         }
 
-        priceLinesRef.current.forEach((line) => {
-          try { candlestickSeriesRef.current.removePriceLine(line) } catch { /* noop */ }
-        })
-        priceLinesRef.current = []
-
-        const { avgBuy, avgSell } = computeAvgPrices(positions)
-        if (avgBuy != null) {
-          priceLinesRef.current.push(candlestickSeriesRef.current.createPriceLine({
-            price: Number(avgBuy.toFixed(2)),
-            color: '#26a69a',
-            lineWidth: 2,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: `進場 $${avgBuy.toFixed(2)}`,
-          }))
-        }
-        if (avgSell != null) {
-          priceLinesRef.current.push(candlestickSeriesRef.current.createPriceLine({
-            price: Number(avgSell.toFixed(2)),
-            color: '#ef5350',
-            lineWidth: 2,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: `出場 $${avgSell.toFixed(2)}`,
-          }))
-        }
+        // 均價虛線改由獨立 effect 管（受 showAvgLines toggle 控制）
       } catch (err) {
         console.error('[KLineChart] load failed:', err)
         setError(err.message || '載入 K 線資料失敗')
@@ -437,6 +414,41 @@ const KLineChart = ({
     }
   }, [enabledMAs])
 
+  // 進出場均價虛線：受 showAvgLines toggle 控制；positions / symbol / toggle 變動時 re-create
+  useEffect(() => {
+    const series = candlestickSeriesRef.current
+    if (!series) return
+
+    priceLinesRef.current.forEach((line) => {
+      try { series.removePriceLine(line) } catch { /* noop */ }
+    })
+    priceLinesRef.current = []
+
+    if (!showAvgLines) return
+
+    const { avgBuy, avgSell } = computeAvgPrices(positions)
+    if (avgBuy != null) {
+      priceLinesRef.current.push(series.createPriceLine({
+        price: Number(avgBuy.toFixed(2)),
+        color: '#26a69a',
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: `進場 $${avgBuy.toFixed(2)}`,
+      }))
+    }
+    if (avgSell != null) {
+      priceLinesRef.current.push(series.createPriceLine({
+        price: Number(avgSell.toFixed(2)),
+        color: '#ef5350',
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: `出場 $${avgSell.toFixed(2)}`,
+      }))
+    }
+  }, [showAvgLines, positions, symbol])
+
   if (!symbol) {
     return (
       <div style={{ 
@@ -496,6 +508,25 @@ const KLineChart = ({
               </span>
             )
           })}
+          {/* 進出場均價虛線 toggle（dashed border 呼應虛線視覺） */}
+          <span
+            onClick={() => setShowAvgLines((v) => !v)}
+            title={showAvgLines ? '點擊隱藏進出場均價虛線' : '點擊顯示進出場均價虛線'}
+            style={{
+              pointerEvents: 'auto',
+              cursor: 'pointer',
+              userSelect: 'none',
+              padding: '2px 6px',
+              borderRadius: 4,
+              border: `1px dashed ${showAvgLines ? '#666' : '#d9d9d9'}`,
+              background: showAvgLines ? 'rgba(255,255,255,0.85)' : 'rgba(245,245,245,0.85)',
+              color: showAvgLines ? '#333' : '#bbb',
+              fontWeight: 500,
+              transition: 'all 0.15s',
+            }}
+          >
+            均價線
+          </span>
         </div>
       )}
       {loading && (

@@ -1,7 +1,7 @@
 // src/features/trades/components/TradeDrawer.jsx
 import React, { useState, useEffect } from 'react'
 import { 
-  Drawer, Row, Col, Descriptions, Card, Form, Input, Select, Rate, 
+  Drawer, Row, Col, Card, Form, Input, Select, Rate,
   Button, Space, Table, Tag, message, InputNumber, DatePicker, Popconfirm, Typography, Spin, Switch
 } from 'antd'
 import { SaveOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -106,11 +106,11 @@ const TradeDrawer = ({
     return () => window.removeEventListener('resize', handler)
   }, [])
   const isWideLayout = viewport.vw >= 1280
-  const drawerWidth = isWideLayout ? Math.min(viewport.vw * 0.9, 1600) : 1000
+  const drawerWidth = isWideLayout ? Math.min(viewport.vw * 0.9, 1320) : 1000
   // K 線高度綁寬度（≈ 3:2 含成交量副圖），避免綁 viewport.vh 造成主圖被撐成正方形、趨勢失真
-  // 左欄寬 = (drawer 內容寬 - drawer padding 32 - gap 16) × 45% - card body padding 24
-  const leftPaneInnerWidth = isWideLayout ? (drawerWidth - 32 - 16) * 0.45 - 24 : 0
-  const wideChartHeight = Math.max(Math.round(leftPaneInnerWidth / 1.5), 380)
+  // K 線右欄寬 = (drawer 內容寬 - drawer padding 32 - gap 16) × 60% - card body padding 24
+  const chartPaneInnerWidth = isWideLayout ? (drawerWidth - 32 - 16) * 0.60 - 24 : 0
+  const wideChartHeight = Math.max(Math.round(chartPaneInnerWidth / 1.5), 380)
 
   // 使用 useTrade hook 獲取交易詳情
   const { data: tradeData, loading: tradeLoading, error: tradeError, refetch: refetchTrade } = useTrade(tradeId, visible)
@@ -448,14 +448,18 @@ const TradeDrawer = ({
         </div>
       ) : tradeData ? (
         <div style={isWideLayout ? { display: 'flex', gap: 16, height: '100%' } : undefined}>
-          {/* 左欄（wide）/ 上方（narrow）：K 線圖 */}
-          <div style={isWideLayout
-            ? { flex: '0 0 45%', minWidth: 0, display: 'flex', flexDirection: 'column' }
-            : { display: 'contents' }}>
+          {/* 左欄（wide 60%）/ 上方（narrow）：K 線圖 + 倉位記錄（與 K 線上的買賣標記同邊，視覺一致） */}
+          <PerfectScrollbar
+            options={{ suppressScrollX: true, wheelPropagation: false }}
+            style={isWideLayout
+              ? { flex: 1, minWidth: 0, paddingRight: 4 }
+              : undefined}
+          >
+            {/* K 線圖 */}
             <Card
               title="K 線圖"
               size="small"
-              style={isWideLayout ? { marginBottom: 0, flexShrink: 0 } : { marginBottom: 16 }}
+              style={{ marginBottom: 16 }}
             >
               <KLineChart
                 symbol={tradeData.symbol}
@@ -463,294 +467,255 @@ const TradeDrawer = ({
                 height={isWideLayout ? wideChartHeight : 400}
               />
             </Card>
-          </div>
 
-          {/* 右欄（wide）/ 下方（narrow）：資訊區（wide 時 PerfectScrollbar 獨立捲動，suppress 水平 scroll） */}
+            {/* 倉位記錄 */}
+            <Card
+              title="倉位記錄"
+              size="small"
+              style={{ marginBottom: 16 }}
+              extra={
+                <Button
+                  type="default"
+                  icon={<PlusOutlined />}
+                  size='small'
+                  className='rounded-sm text-grey-400 bg-white bd-grey-200 shadow-none hover:bg-white'
+                  onClick={handleAddPosition}
+                >
+                  新增倉位
+                </Button>
+              }
+            >
+              <div className='mb-md'>
+                <Form form={form} component={false}>
+                  <Table
+                    components={{
+                      body: { cell: EditableCell },
+                    }}
+                    bordered
+                    dataSource={positionAdjustments}
+                    columns={mergedColumns}
+                    rowClassName="editable-row"
+                    size="small"
+                    pagination={false}
+                  />
+                </Form>
+              </div>
+            </Card>
+          </PerfectScrollbar>
+
+          {/* 右欄（wide 40%）/ 下方（narrow）：交易摘要 + 交易檢討 */}
           <PerfectScrollbar
             options={{ suppressScrollX: true, wheelPropagation: false }}
             style={isWideLayout
-              ? { flex: 1, minWidth: 0, paddingRight: 4 }
+              ? { flex: '0 0 40%', minWidth: 0, paddingRight: 4 }
               : undefined}
           >
-            {/* 第一行：基本資訊、持倉統計、盈虧分析 */}
-          <Row gutter={16} style={{ marginBottom: 16 }}>
-            {/* 基本資訊 */}
-            <Col span={8}>
-              <Card title="基本資訊" size="small" style={{ height: '100%' }}>
-                <Descriptions column={1} size="small">
-                  <Descriptions.Item label="股號">
-                    {tradeData.symbol}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="方向">
-                    <Tag color={tradeData.direction === 'long' ? 'green' : 'red'}>
-                      {tradeData.direction === 'long' ? '多' : '空'}
-                    </Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="策略">
-                    {(() => {
-                      // 安全地處理策略欄位：可能是字符串、對象或 null
-                      if (!tradeData.strategy) return '-'
-                      if (typeof tradeData.strategy === 'object' && tradeData.strategy !== null) {
-                        return tradeData.strategy.name || '-'
-                      }
-                      return tradeData.strategy
-                    })()}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="狀態">
-                    <Tag color={tradeData.status === 'open' ? 'orange' : 'default'}>
-                      {tradeData.status === 'open' ? '持倉中' : '已完成'}
-                    </Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="開倉日">
-                    {tradeData.createdAt
-                      ? dayjs(tradeData.createdAt).format('YYYY/MM/DD')
-                      : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="平倉日">
-                    {tradeData.closedAt
-                      ? dayjs(tradeData.closedAt).format('YYYY/MM/DD')
-                      : '-'}
-                  </Descriptions.Item>
-                </Descriptions>
-              </Card>
-            </Col>
+            {/* 交易摘要：單一 block，分四層（header strip / KPI hero / 細節雙欄 / footer） */}
+            <Card title="交易摘要" size="small" style={{ marginBottom: 16 }}>
+              {/* Header strip：股號 + 方向 + 狀態 + 策略 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 18, fontWeight: 'bold' }}>{tradeData.symbol}</span>
+                <Tag color={tradeData.direction === 'long' ? 'green' : 'red'} style={{ margin: 0 }}>
+                  {tradeData.direction === 'long' ? '多' : '空'}
+                </Tag>
+                <Tag color={tradeData.status === 'open' ? 'orange' : 'default'} style={{ margin: 0 }}>
+                  {tradeData.status === 'open' ? '持倉中' : '已完成'}
+                </Tag>
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: '#666' }}>
+                  策略：{(() => {
+                    if (!tradeData.strategy) return '-'
+                    if (typeof tradeData.strategy === 'object' && tradeData.strategy !== null) {
+                      return tradeData.strategy.name || '-'
+                    }
+                    return tradeData.strategy
+                  })()}
+                </span>
+              </div>
 
-            {/* 持倉統計（使用後端欄位） */}
-            <Col span={8}>
-              <Card title="持倉統計" size="small" style={{ height: '100%' }}>
-                <Descriptions column={1} size="small">
-                  <Descriptions.Item label="總數量">
-                    {tradeData.totalShares?.toLocaleString() || 0}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="建倉次數">
-                    {tradeData.entryCount ?? positionAdjustments.length ?? 0}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="平均買價">
-                    ${tradeData.avgPrice ? parseFloat(tradeData.avgPrice).toFixed(2) : '0.00'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="平均賣價">
-                    {tradeData.avgSellPrice != null
-                      ? `$${parseFloat(tradeData.avgSellPrice).toFixed(2)}`
-                      : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="總價值">
-                    ${tradeData.totalValue ? parseFloat(tradeData.totalValue).toFixed(2) : '0.00'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="持倉時間">
-                    {tradeData.holdingDuration != null
-                      ? (parseFloat(tradeData.holdingDuration) <= 0 ? '當日' : `${parseFloat(tradeData.holdingDuration).toFixed(1)} 天`)
-                      : '-'}
-                  </Descriptions.Item>
-                </Descriptions>
-              </Card>
-            </Col>
+              {/* 期間 subtitle：在 header 下方一點，小灰字 */}
+              <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 14 }}>
+                {tradeData.createdAt ? dayjs(tradeData.createdAt).format('YYYY/MM/DD') : '—'}
+                {' → '}
+                {tradeData.closedAt ? dayjs(tradeData.closedAt).format('YYYY/MM/DD') : '—'}
+              </div>
 
-            {/* 盈虧分析（區分已實現 / 未實現） */}
-            <Col span={8}>
-              <Card title="盈虧分析" size="small" style={{ height: '100%' }}>
-                <Descriptions column={1} size="small">
-                  {/* 未實現（僅 open 顯示） */}
-                  {tradeData.status === 'open' && (
-                    <Descriptions.Item label="最新收盤">
-                      {tradeData.currentPrice != null
-                        ? <span style={{ fontWeight: 'bold' }}>${parseFloat(tradeData.currentPrice).toFixed(2)}</span>
-                        : <span style={{ color: '#999' }}>尚未取得（等收盤後）</span>}
-                    </Descriptions.Item>
-                  )}
-                  {tradeData.status === 'open' && (
-                    <Descriptions.Item label="未實現盈虧">
-                      {tradeData.unrealizedPnL != null
-                        ? (
-                          <span style={{ color: pnlColor(tradeData.unrealizedPnL), fontWeight: 'bold' }}>
-                            {tradeData.unrealizedPnL > 0 ? '+' : ''}{tradeData.unrealizedPnL.toLocaleString()} 元
-                          </span>
-                        )
-                        : <span style={{ color: '#999' }}>-</span>}
-                    </Descriptions.Item>
-                  )}
-
-                  {/* 已實現（兩種狀態皆顯示，但 open 多半是 0） */}
-                  <Descriptions.Item label="已實現盈虧">
-                    <span style={{
-                      color: pnlColor(tradeData.profitLoss),
-                      fontWeight: 'bold'
-                    }}>
-                      {tradeData.profitLoss > 0 ? '+' : ''}{tradeData.profitLoss?.toLocaleString() || 0} 元
-                    </span>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="盈虧比例">
-                    <span style={{
-                      color: (tradeData.profitLossRatio || 0) >= 0 ? CLR_UP : CLR_DOWN,
-                      fontWeight: 'bold'
-                    }}>
-                      {tradeData.profitLossRatio >= 0 ? '+' : ''}{((tradeData.profitLossRatio || 0) * 100).toFixed(2)}%
-                    </span>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="手續費">
-                    {tradeData.totalFee ? `${tradeData.totalFee.toLocaleString()} 元` : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="稅金">
-                    {tradeData.totalTax ? `${tradeData.totalTax.toLocaleString()} 元` : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="淨損益">
-                    <span style={{
-                      color: pnlColor(tradeData.netProfitLoss),
-                      fontWeight: 'bold'
-                    }}>
-                      {tradeData.netProfitLoss > 0 ? '+' : ''}{tradeData.netProfitLoss?.toLocaleString() || 0} 元
-                    </span>
-                  </Descriptions.Item>
-                </Descriptions>
-              </Card>
-            </Col>
-          </Row>
-
-          {/* 倉位記錄 */}
-          <Card 
-            title="倉位記錄" 
-            size="small" 
-            style={{ marginBottom: 16 }} 
-            extra={
-              <Button 
-                type="default" 
-                icon={<PlusOutlined />} 
-                size='small'
-                className='rounded-sm text-grey-400 bg-white bd-grey-200 shadow-none hover:bg-white'
-                onClick={handleAddPosition}
-              >
-                新增倉位
-              </Button>
-            }
-          >
-            <div className='mb-md'>
-              <Form form={form} component={false}>
-                <Table
-                  components={{
-                    body: { cell: EditableCell },
-                  }}
-                  bordered
-                  dataSource={positionAdjustments}
-                  columns={mergedColumns}
-                  rowClassName="editable-row"
-                  size="small"
-                  pagination={false}
-                />
-              </Form>
-            </div>
-          </Card>
-
-          {/* 交易檢討 */}
-          <Card title="交易檢討" size="small">
-            <Row gutter={24}>
-              {/* 左側：檢討內容 */}
-              <Col span={12}>
-                <Form
-                  form={reviewForm}
-                  layout="vertical"
-                  size="small"
-                >
-                  <Form.Item
-                    label="檢討內容"
-                    name="content"
-                  >
-                    <TextArea
-                      rows={8}
-                      placeholder="請詳細描述這次交易的檢討內容，包括成功或失敗的原因、學到的經驗、下次如何改進等..."
-                      maxLength={1000}
-                      showCount
-                    />
-                  </Form.Item>
-                </Form>
-              </Col>
-
-              {/* 右側：表單 */}
-              <Col span={12}>
-                <Form
-                  form={reviewForm}
-                  layout="vertical"
-                  size="small"
-                >
-                  <Row gutter={16} >
-                    <Col span={12}>
-                      <Form.Item
-                        label="錯誤分類"
-                        name="errorCategory"
-                      >
-                        <Select placeholder="請選擇主要錯誤類型">
-                          {errorCategories.map(category => (
-                            <Option key={category.value} value={category.value}>
-                              {category.label}
-                            </Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        label="當時情緒"
-                        name="emotion"
-                      >
-                        <Select placeholder="請選擇交易時的情緒狀態">
-                          {emotions.map(emotion => (
-                            <Option key={emotion.value} value={emotion.value}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div 
-                                  style={{ 
-                                    width: '12px', 
-                                    height: '12px', 
-                                    borderRadius: '50%', 
-                                    backgroundColor: emotion.color 
-                                  }} 
-                                />
-                                {emotion.label}
-                              </div>
-                            </Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  <Row gutter={16} >
-                    <Col span={12}>
-                      <Form.Item
-                        label="是否遵守紀律"
-                        name="followedDiscipline"
-                        valuePropName="checked"
-                      >
-                        <Switch 
-                          checkedChildren="是" 
-                          unCheckedChildren="否"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        label="自我評分"
-                        name="selfRating"
-                      >
-                        <Rate 
-                          count={5}
-                          tooltips={['1分', '2分', '3分', '4分', '5分']}
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  <div style={{ 
-                    padding: 8, 
-                    background: '#f5f5f5', 
-                    borderRadius: 4,
-                    fontSize: '11px',
-                    color: '#666',
-                    lineHeight: '1.3'
-                  }}>
-                    <strong>評分說明：</strong>1分：表現不佳，2分：表現較差，3分：一般水準，4分：表現良好，5分：完美執行
+              {/* 2-col sections：持倉資訊 | 損益明細 */}
+              <div style={{ display: 'flex' }}>
+                <div style={{ flex: 1, paddingRight: 12, borderRight: '1px solid #f0f0f0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#262626', marginBottom: 8 }}>持倉資訊</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.9 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>數量</span>
+                      <span>{tradeData.totalShares?.toLocaleString() || 0} 股</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>平均買價</span>
+                      <span>${tradeData.avgPrice ? parseFloat(tradeData.avgPrice).toFixed(2) : '0.00'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>平均賣價</span>
+                      <span>{tradeData.avgSellPrice != null ? `$${parseFloat(tradeData.avgSellPrice).toFixed(2)}` : '—'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>建倉成本</span>
+                      <span>${tradeData.totalValue ? parseFloat(tradeData.totalValue).toFixed(2) : '0.00'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>持倉天數</span>
+                      <span>
+                        {tradeData.holdingDuration != null
+                          ? (parseFloat(tradeData.holdingDuration) <= 0 ? '當日' : `${parseFloat(tradeData.holdingDuration).toFixed(1)} 天`)
+                          : '—'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>建倉次數</span>
+                      <span>{tradeData.entryCount ?? positionAdjustments.length ?? 0} 次</span>
+                    </div>
                   </div>
-                </Form>
-              </Col>
-            </Row>
-          </Card>
+                </div>
+                <div style={{ flex: 1, paddingLeft: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#262626', marginBottom: 8 }}>損益明細</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.9 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>淨損益</span>
+                      <span style={{ color: pnlColor(tradeData.netProfitLoss), fontWeight: 500 }}>
+                        {tradeData.netProfitLoss > 0 ? '+' : ''}{tradeData.netProfitLoss?.toLocaleString() || 0}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>盈虧比例</span>
+                      <span style={{ color: (tradeData.profitLossRatio || 0) >= 0 ? CLR_UP : CLR_DOWN, fontWeight: 500 }}>
+                        {tradeData.profitLossRatio >= 0 ? '+' : ''}{((tradeData.profitLossRatio || 0) * 100).toFixed(2)}%
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>已實現</span>
+                      <span style={{ color: pnlColor(tradeData.profitLoss), fontWeight: 500 }}>
+                        {tradeData.profitLoss > 0 ? '+' : ''}{tradeData.profitLoss?.toLocaleString() || 0}
+                      </span>
+                    </div>
+                    {tradeData.status === 'open' && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#8c8c8c' }}>未實現</span>
+                        <span style={{ color: tradeData.unrealizedPnL != null ? pnlColor(tradeData.unrealizedPnL) : '#8c8c8c', fontWeight: 500 }}>
+                          {tradeData.unrealizedPnL != null
+                            ? `${tradeData.unrealizedPnL > 0 ? '+' : ''}${tradeData.unrealizedPnL.toLocaleString()}`
+                            : '—'}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>手續費</span>
+                      <span>{tradeData.totalFee ? `-${tradeData.totalFee.toLocaleString()}` : '—'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#8c8c8c' }}>稅</span>
+                      <span>{tradeData.totalTax ? `-${tradeData.totalTax.toLocaleString()}` : '—'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* 交易檢討：欄位垂直堆疊（左欄較窄不適合內部再分左右） */}
+            <Card title="交易檢討" size="small" style={{ marginBottom: 16 }}>
+              <Form
+                form={reviewForm}
+                layout="vertical"
+                size="small"
+              >
+                <Form.Item
+                  label="檢討內容"
+                  name="content"
+                >
+                  <TextArea
+                    rows={6}
+                    placeholder="請詳細描述這次交易的檢討內容，包括成功或失敗的原因、學到的經驗、下次如何改進等..."
+                    maxLength={1000}
+                    showCount
+                  />
+                </Form.Item>
+
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      label="錯誤分類"
+                      name="errorCategory"
+                    >
+                      <Select placeholder="請選擇主要錯誤類型">
+                        {errorCategories.map(category => (
+                          <Option key={category.value} value={category.value}>
+                            {category.label}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      label="當時情緒"
+                      name="emotion"
+                    >
+                      <Select placeholder="請選擇交易時的情緒狀態">
+                        {emotions.map(emotion => (
+                          <Option key={emotion.value} value={emotion.value}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div
+                                style={{
+                                  width: '12px',
+                                  height: '12px',
+                                  borderRadius: '50%',
+                                  backgroundColor: emotion.color
+                                }}
+                              />
+                              {emotion.label}
+                            </div>
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      label="是否遵守紀律"
+                      name="followedDiscipline"
+                      valuePropName="checked"
+                    >
+                      <Switch
+                        checkedChildren="是"
+                        unCheckedChildren="否"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      label="自我評分"
+                      name="selfRating"
+                    >
+                      <Rate
+                        count={5}
+                        tooltips={['1分', '2分', '3分', '4分', '5分']}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <div style={{
+                  padding: 8,
+                  background: '#f5f5f5',
+                  borderRadius: 4,
+                  fontSize: '11px',
+                  color: '#666',
+                  lineHeight: '1.3'
+                }}>
+                  <strong>評分說明：</strong>1分：表現不佳，2分：表現較差，3分：一般水準，4分：表現良好，5分：完美執行
+                </div>
+              </Form>
+            </Card>
           </PerfectScrollbar>
         </div>
       ) : null}
