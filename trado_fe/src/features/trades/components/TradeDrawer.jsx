@@ -108,8 +108,8 @@ const TradeDrawer = ({
   const isWideLayout = viewport.vw >= 1280
   const drawerWidth = isWideLayout ? Math.min(viewport.vw * 0.9, 1320) : 1000
   // K 線高度綁寬度（≈ 3:2 含成交量副圖），避免綁 viewport.vh 造成主圖被撐成正方形、趨勢失真
-  // K 線右欄寬 = (drawer 內容寬 - drawer padding 32 - gap 16) × 60% - card body padding 24
-  const chartPaneInnerWidth = isWideLayout ? (drawerWidth - 32 - 16) * 0.60 - 24 : 0
+  // K 線左欄寬 = (drawer 內容寬 - drawer padding 32 - gap 16) × 50% - card body padding 24
+  const chartPaneInnerWidth = isWideLayout ? (drawerWidth - 32 - 16) * 0.50 - 24 : 0
   const wideChartHeight = Math.max(Math.round(chartPaneInnerWidth / 1.5), 380)
 
   // 使用 useTrade hook 獲取交易詳情
@@ -503,11 +503,11 @@ const TradeDrawer = ({
             </Card>
           </PerfectScrollbar>
 
-          {/* 右欄（wide 40%）/ 下方（narrow）：交易摘要 + 交易檢討 */}
+          {/* 右欄（wide 50%）/ 下方（narrow）：交易摘要 + 交易檢討 */}
           <PerfectScrollbar
             options={{ suppressScrollX: true, wheelPropagation: false }}
             style={isWideLayout
-              ? { flex: '0 0 40%', minWidth: 0, paddingRight: 4 }
+              ? { flex: '0 0 50%', minWidth: 0, paddingRight: 4 }
               : undefined}
           >
             {/* 交易摘要：單一 block，分四層（header strip / KPI hero / 細節雙欄 / footer） */}
