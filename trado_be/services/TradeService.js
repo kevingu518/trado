@@ -231,17 +231,20 @@ class TradeService {
       }
     }
 
-    // 驗證 strategyId 是否存在，如果不存在則設為 null（避免外鍵約束錯誤）
+    // 策略 fallback：未指定或不存在的 strategyId 一律導向使用者的系統「未分類」策略
     if (tradeFields.strategyId) {
       const strategy = await prisma.strategy.findUnique({
         where: { id: tradeFields.strategyId },
-        select: { id: true },
+        select: { id: true, userId: true },
       });
 
-      // 如果 strategy 不存在，設為 null（不存入資料庫）
-      if (!strategy) {
-        tradeData.strategyId = null;
+      if (!strategy || strategy.userId !== userId) {
+        const systemStrategy = await strategyService.ensureSystemStrategy(userId);
+        tradeData.strategyId = systemStrategy.id;
       }
+    } else {
+      const systemStrategy = await strategyService.ensureSystemStrategy(userId);
+      tradeData.strategyId = systemStrategy.id;
     }
 
     // 預先驗證 deposit
@@ -402,14 +405,21 @@ class TradeService {
       }
     }
 
-    // 驗證 strategyId 是否存在，不存在則設為 null（避免外鍵約束錯誤）
-    if (updateData.strategyId) {
-      const strategy = await prisma.strategy.findUnique({
-        where: { id: updateData.strategyId },
-        select: { id: true },
-      });
-      if (!strategy) {
-        updateData.strategyId = null;
+    // 策略 fallback：若使用者把策略清空、或傳入不存在的 strategyId，
+    // 一律導向該使用者的系統「未分類」策略，讓統計永遠涵蓋所有交易
+    if (updateData.strategyId !== undefined) {
+      if (updateData.strategyId) {
+        const strategy = await prisma.strategy.findUnique({
+          where: { id: updateData.strategyId },
+          select: { id: true, userId: true },
+        });
+        if (!strategy || strategy.userId !== userId) {
+          const systemStrategy = await strategyService.ensureSystemStrategy(userId);
+          updateData.strategyId = systemStrategy.id;
+        }
+      } else {
+        const systemStrategy = await strategyService.ensureSystemStrategy(userId);
+        updateData.strategyId = systemStrategy.id;
       }
     }
 

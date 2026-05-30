@@ -160,6 +160,7 @@ model Strategy {
   
   // [系統欄位]
   isActive    Boolean  @default(true)
+  isSystem    Boolean  @default(false)  // 系統建立的未分類策略，每個使用者一筆，不可編輯/刪除
   createdAt   DateTime @default(now()) @db.Timestamp(6)
   updatedAt   DateTime @updatedAt @db.Timestamp(6)
   trades      TradeStrategy[]
@@ -167,6 +168,7 @@ model Strategy {
   performance StrategyPerformance[]  // 績效快照
 
   @@index([userId])
+  @@index([userId, isSystem])
   @@index([category])
 }
 

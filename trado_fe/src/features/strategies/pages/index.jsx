@@ -117,10 +117,11 @@ const Strategies = () => {
   // -------------------------   render   ----------------------------
   const strategiesList = useMemo(() => data?.list || [], [data])
 
-  // 頁面級彙總(所有策略,不受 filter 影響)
+  // 頁面級彙總(所有策略,不受 filter 影響；系統「未分類」策略不列入上限統計)
   const summary = useMemo(() => {
-    const total = strategiesList.length
-    const activeCount = strategiesList.filter((s) => s.isActive).length
+    const userStrategies = strategiesList.filter((s) => !s.isSystem)
+    const total = userStrategies.length
+    const activeCount = userStrategies.filter((s) => s.isActive).length
     const totalTrades = strategiesList.reduce((sum, s) => sum + (s.stats?.totalTrades ?? 0), 0)
     const weightedWinRate = (() => {
       const weighted = strategiesList.reduce(
@@ -284,14 +285,18 @@ const Strategies = () => {
                 className={`Strategies-card ${!strategy.isActive ? 'inactive' : ''}`}
                 hoverable
                 actions={[
-                  <Switch
-                    key="switch"
-                    checked={strategy.isActive}
-                    onChange={(checked) => handleToggleActive(strategy, checked)}
-                    onClick={(e) => e.stopPropagation()}
-                    size="small"
-                    className="my-base"
-                  />,
+                  strategy.isSystem ? (
+                    <Tag key="system" color="default" className="my-base">系統</Tag>
+                  ) : (
+                    <Switch
+                      key="switch"
+                      checked={strategy.isActive}
+                      onChange={(checked) => handleToggleActive(strategy, checked)}
+                      onClick={(e) => e.stopPropagation()}
+                      size="small"
+                      className="my-base"
+                    />
+                  ),
                   <Button
                     key="view"
                     type="text"
@@ -310,10 +315,10 @@ const Strategies = () => {
                   {/* header */}
                   <div className="Strategies-card-header">
                     <h3 className="Strategies-card-title">{strategy.name}</h3>
-                    <Tag 
+                    <Tag
                       className="mr-none"
-                      color={CATEGORY_MAP[strategy.category || strategy.type]?.color || 'default'}>
-                      {CATEGORY_MAP[strategy.category || strategy.type]?.label || strategy.category || strategy.type}
+                      color={strategy.isSystem ? 'default' : (CATEGORY_MAP[strategy.category || strategy.type]?.color || 'default')}>
+                      {strategy.isSystem ? '雜項' : (CATEGORY_MAP[strategy.category || strategy.type]?.label || strategy.category || strategy.type)}
                     </Tag>
                   </div>
                   {/* start date */}

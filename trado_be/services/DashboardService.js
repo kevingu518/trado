@@ -195,7 +195,6 @@ class DashboardService {
         userId,
         status: 'closed',
         closedAt: { gte: startDate, lte: endDate },
-        strategyId: { not: null },
       },
       select: {
         netProfitLoss: true,
@@ -204,10 +203,10 @@ class DashboardService {
       },
     });
 
-    // 按策略分組
+    // 按策略分組（包含「未分類」系統策略，舊資料 strategyId 仍為 null 時也歸到 __unassigned__）
     const groups = {};
     for (const t of trades) {
-      const id = t.strategyId;
+      const id = t.strategyId || '__unassigned__';
       if (!groups[id]) {
         groups[id] = { name: t.strategy?.name || '未分類', trades: [] };
       }

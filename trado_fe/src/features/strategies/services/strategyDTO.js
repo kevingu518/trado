@@ -24,13 +24,17 @@ export const strategyDTO = {
   toFrontend(apiStrategy) {
     if (!apiStrategy) return null
 
+    const isSystem = !!apiStrategy.isSystem
+    // 系統策略沒有 category，避免被誤標為 TREND_FOLLOWING
+    const categoryFallback = isSystem ? null : 'TREND_FOLLOWING'
+
     return {
       id: apiStrategy.id,
       userId: apiStrategy.userId,
       name: apiStrategy.name || '',
       description: apiStrategy.description || '',
-      category: apiStrategy.category || 'TREND_FOLLOWING', // 後端使用 category
-      type: apiStrategy.category || 'TREND_FOLLOWING', // 保留 type 作為 category 的別名，方便前端使用
+      category: apiStrategy.category || categoryFallback, // 後端使用 category
+      type: apiStrategy.category || categoryFallback, // 保留 type 作為 category 的別名，方便前端使用
       note: apiStrategy.note || '',
       stockSelectionCriteria: apiStrategy.stockSelectionCriteria || '',
       entryConditions: apiStrategy.entryConditions || '',
@@ -42,6 +46,7 @@ export const strategyDTO = {
       watchlistTrigger: apiStrategy.watchlistTrigger || '',
       addPositionRules: apiStrategy.addPositionRules || '',
       isActive: apiStrategy.isActive !== undefined ? apiStrategy.isActive : true,
+      isSystem,
       createdAt: formatDate(apiStrategy.createdAt),
       updatedAt: formatDate(apiStrategy.updatedAt),
       // 統計資料（可選，如果後端有提供）

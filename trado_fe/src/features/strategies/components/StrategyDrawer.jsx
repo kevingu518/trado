@@ -152,32 +152,34 @@ const StrategyDrawer = ({
       className="StrategyDrawer"
       styles={{ body: { padding: 0, overflow: 'hidden' } }}
       extra={
-        <Space>
-          <Popconfirm
-            title="刪除策略"
-            description="將刪除此策略及其所有相關記錄，此操作無法復原，確定要刪除嗎？"
-            okText="刪除"
-            okType="danger"
-            cancelText="取消"
-            onConfirm={handleDelete}
-          >
-            <Button
-              type="text"
-              icon={<DeleteOutlined />}
-              className="StrategyDrawer-delete-btn"
+        strategyData.isSystem ? null : (
+          <Space>
+            <Popconfirm
+              title="刪除策略"
+              description="將刪除此策略及其所有相關記錄，此操作無法復原，確定要刪除嗎？"
+              okText="刪除"
+              okType="danger"
+              cancelText="取消"
+              onConfirm={handleDelete}
             >
-              刪除
-            </Button>
-          </Popconfirm>
+              <Button
+                type="text"
+                icon={<DeleteOutlined />}
+                className="StrategyDrawer-delete-btn"
+              >
+                刪除
+              </Button>
+            </Popconfirm>
 
-          <Button
-            icon={<EditOutlined />}
-            onClick={() => onEdit && onEdit(strategyData)}
-            style={{ borderRadius: '4px' }}
-          >
-            編輯
-          </Button>
-        </Space>
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => onEdit && onEdit(strategyData)}
+              style={{ borderRadius: '4px' }}
+            >
+              編輯
+            </Button>
+          </Space>
+        )
       }
     >
       <Row gutter={0} style={{ height: '100%' }}>

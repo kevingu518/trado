@@ -4,6 +4,9 @@ import { NotFoundError, AppError } from '../errors/index.js';
 // 每位使用者最多可建立的策略數（需與前端 strategy.config.js 同步）
 const MAX_STRATEGIES_PER_USER = 20;
 
+// 系統建立的「雜項」策略名稱（每位使用者一筆，匯整所有未指定策略的交易）
+export const SYSTEM_STRATEGY_NAME = '雜項';
+
 class StrategyService {
   async getAllStrategies(userId, options = {}) {
     const {
@@ -114,8 +117,8 @@ class StrategyService {
       );
     }
 
-    // 檢查建立數量上限
-    const count = await prisma.strategy.count({ where: { userId } });
+    // 檢查建立數量上限（系統策略不計入）
+    const count = await prisma.strategy.count({ where: { userId, isSystem: false } });
     if (count >= MAX_STRATEGIES_PER_USER) {
       throw new AppError(
         `策略數量已達上限 (${MAX_STRATEGIES_PER_USER})，請先刪除不需要的策略`,
@@ -123,9 +126,12 @@ class StrategyService {
       );
     }
 
+    // 不允許使用者透過 API 自行建立系統策略
+    const { isSystem: _ignoreIsSystem, ...safeData } = data;
+
     return await prisma.strategy.create({
       data: {
-        ...data,
+        ...safeData,
         userId,
       },
     });
@@ -145,6 +151,10 @@ class StrategyService {
       throw new AppError('Access denied', 403);
     }
 
+    if (strategy.isSystem) {
+      throw new AppError('系統策略不可編輯', 400);
+    }
+
     // 驗證 category 必須是有效的值
     const validCategories = ['TREND_FOLLOWING', 'CONTRARIAN', 'DAY_TRADING', 'DIVIDEND_INVESTING'];
     if (data.category !== undefined && data.category !== null && !validCategories.includes(data.category)) {
@@ -154,9 +164,12 @@ class StrategyService {
       );
     }
 
+    // 不允許切換 isSystem 旗標
+    const { isSystem: _ignoreIsSystem, ...safeData } = data;
+
     return await prisma.strategy.update({
       where: { id },
-      data,
+      data: safeData,
     });
   }
 
@@ -174,11 +187,38 @@ class StrategyService {
       throw new AppError('Access denied', 403);
     }
 
+    if (strategy.isSystem) {
+      throw new AppError('系統策略不可刪除', 400);
+    }
+
     await prisma.strategy.delete({
       where: { id },
     });
 
     return { message: 'Strategy deleted successfully' };
+  }
+
+  /**
+   * 取得或建立使用者的系統「未分類」策略
+   * 用於：使用者建立後初始化、交易未指定策略時 fallback
+   */
+  async ensureSystemStrategy(userId, txClient = null) {
+    const client = txClient || prisma;
+    const existing = await client.strategy.findFirst({
+      where: { userId, isSystem: true },
+      select: { id: true },
+    });
+    if (existing) return existing;
+
+    return await client.strategy.create({
+      data: {
+        userId,
+        name: SYSTEM_STRATEGY_NAME,
+        isSystem: true,
+        isActive: true,
+      },
+      select: { id: true },
+    });
   }
 
   /**

@@ -30,23 +30,23 @@ const AddTradeModal = ({
   )
 
   // 將策略列表轉換為 Select 選項格式
+  // 系統「未分類」策略以正常選項呈現（排首位），不另設「無」選項，避免兩個入口指向同一個 bucket
   const strategyOptions = useMemo(() => {
-    const options = [
-      { value: 'none', label: '無' } // 保留"無"選項
-    ]
-    
-    if (strategiesData?.list) {
-      const activeStrategies = strategiesData.list
-        .filter(strategy => strategy.isActive) // 再次過濾確保只顯示啟用的
-        .map(strategy => ({
-          value: strategy.id, // 使用策略 ID 作為 value
-          label: strategy.name // 使用策略名稱作為 label
-        }))
-      
-      options.push(...activeStrategies)
-    }
-    
-    return options
+    if (!strategiesData?.list) return []
+
+    const active = strategiesData.list.filter(s => s.isActive)
+    const system = active.filter(s => s.isSystem)
+    const userStrategies = active.filter(s => !s.isSystem)
+
+    return [...system, ...userStrategies].map(s => ({
+      value: s.id,
+      label: s.name,
+    }))
+  }, [strategiesData])
+
+  // 系統「未分類」策略 id（用於預設值 / fallback）
+  const systemStrategyId = useMemo(() => {
+    return strategiesData?.list?.find(s => s.isSystem)?.id || null
   }, [strategiesData])
 
   // 開啟「同步補入金」時，預設金額帶入買入成本（股數 × 價格）
@@ -62,16 +62,15 @@ const AddTradeModal = ({
   // 初始化表單資料（編輯模式）
   useEffect(() => {
     if (visible && isEditMode && initialData) {
-      // 處理策略欄位：可能是策略 ID、策略名稱或 null
-      let strategyValue = 'none'
-      if (initialData.strategyId) {
+      // 策略欄位優先用 strategyId；找不到就 fallback 到系統「未分類」
+      let strategyValue = systemStrategyId
+      if (initialData.strategyId && strategyOptions.some(opt => opt.value === initialData.strategyId)) {
         strategyValue = initialData.strategyId
       } else if (initialData.strategy) {
-        // 如果是策略名稱，嘗試找到對應的 ID
         const matchedStrategy = strategyOptions.find(opt => opt.label === initialData.strategy)
-        strategyValue = matchedStrategy ? matchedStrategy.value : 'none'
+        if (matchedStrategy) strategyValue = matchedStrategy.value
       }
-      
+
       form.setFieldsValue({
         symbol: initialData.symbol,
         direction: initialData.direction,
@@ -79,17 +78,17 @@ const AddTradeModal = ({
         createdAt: initialData.createdAt ? dayjs(initialData.createdAt) : null,
       })
     } else if (visible && !isEditMode) {
-      // 新增模式時重置表單
+      // 新增模式時重置表單；策略預設為系統「未分類」
       form.resetFields()
       form.setFieldsValue({
         direction: 'long',
-        strategy: 'none',
+        strategy: systemStrategyId,
         withPosition: false,
         withDeposit: false,
         createdAt: dayjs(),
       })
     }
-  }, [visible, isEditMode, initialData, form, strategyOptions])
+  }, [visible, isEditMode, initialData, form, strategyOptions, systemStrategyId])
 
   // 處理保存
   const handleSave = async () => {
@@ -100,8 +99,8 @@ const AddTradeModal = ({
         ? await form.validateFields().catch(() => form.getFieldsValue()) // 編輯模式：即使驗證失敗也取得表單值
         : await form.validateFields() // 新增模式：嚴格驗證
 
-      // 策略 id 是 UUID（字串）；'none' 代表清除策略
-      const strategyIdValue = values.strategy && values.strategy !== 'none' ? values.strategy : null
+      // 策略 id 是 UUID（字串）；若清空則送 null（後端會自動導向系統「未分類」策略）
+      const strategyIdValue = values.strategy || null
 
       // 編輯模式：送出所有已填欄位（包含 strategyId: null 以支援「清除策略」）
       const tradeData = isEditMode

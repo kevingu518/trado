@@ -35,8 +35,8 @@ export const useStrategies = (params = {}, enabled = true) => {
     params.sortOrder
   ])
 
-  // 策略數量控管
-  const strategyCount = data?.list?.length ?? 0
+  // 策略數量控管（系統「未分類」策略不計入上限）
+  const strategyCount = (data?.list ?? []).filter((s) => !s.isSystem).length
   const isAtLimit = strategyCount >= STRATEGY_LIMITS.MAX_STRATEGIES
   const remaining = Math.max(0, STRATEGY_LIMITS.MAX_STRATEGIES - strategyCount)
 

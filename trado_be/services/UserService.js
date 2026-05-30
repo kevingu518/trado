@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { NotFoundError, AppError } from '../errors/index.js';
+import { SYSTEM_STRATEGY_NAME } from './StrategyService.js';
 
 class UserService {
   /**
@@ -61,17 +62,31 @@ class UserService {
       throw new AppError('User with this Google ID already exists', 409);
     }
 
-    return await prisma.user.create({
-      data,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        picture: true,
-        googleId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+    return await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          picture: true,
+          googleId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // 每位使用者建立時，預先準備一筆「未分類」系統策略
+      await tx.strategy.create({
+        data: {
+          userId: user.id,
+          name: SYSTEM_STRATEGY_NAME,
+          isSystem: true,
+          isActive: true,
+        },
+      });
+
+      return user;
     });
   }
 
