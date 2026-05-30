@@ -60,6 +60,12 @@ const ensureRangeCached = async (symbol, startIso, endIso) => {
     })
   );
 
+  // 當月資料持續變動（cron 可能漏抓當日，例如 TPEX publish 較晚），永遠視為「未 cache」
+  // 強制重抓，讓使用者一打開圖就能補上最新交易日
+  const now = new Date();
+  const currentMonthKey = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  cachedMonths.delete(currentMonthKey);
+
   const allMonths = enumerateMonths(startIso, endIso); // YYYYMM01
   const missingMonths = allMonths.filter((q) => !cachedMonths.has(q.slice(0, 6)));
 

@@ -34,16 +34,17 @@ const runOnce = async () => {
   }
 };
 
-// 週一至週五 14:30（台股收盤後）— 跟 snapshot 同時段，但 snapshot 是 14:30，stock 設 14:35 錯開避免併發影響
+// 週一至週五 16:00（台股收盤後）。TPEX 上櫃資料通常比 TWSE 晚 30~60 分鐘 publish，
+// 14:30 收盤後跑太早會抓不到當日上櫃資料（曾經漏抓 8935 5/29）。設 16:00 保守等資料就緒。
 cron.schedule(
-  '35 14 * * 1-5',
+  '0 16 * * 1-5',
   () => {
     runOnce().catch((err) => console.error('[StockPriceJob] runOnce error:', err));
   },
   { timezone: 'Asia/Taipei' }
 );
 
-console.log('[StockPriceJob] Scheduled: weekdays at 14:35 (Asia/Taipei)');
+console.log('[StockPriceJob] Scheduled: weekdays at 16:00 (Asia/Taipei)');
 
 // 啟動後（dev/restart）也 trigger 一次，確保剛開機就有資料
 // prod 環境如果不想啟動就跑，可以用 NODE_ENV gate
