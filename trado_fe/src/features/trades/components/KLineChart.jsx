@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { createChart, LineStyle } from 'lightweight-charts'
 import { Spin } from 'antd'
 import { getStockKlineApi } from '@/api/api_stock'
@@ -25,11 +26,13 @@ const MAX_HISTORY_YEARS = 5
  * @param {string} symbol - 股票代號，如 "2330"
  * @param {Array} positions - Position 數據 [{ date, action, price, shares, ... }]
  * @param {number} height - 圖表高度
+ * @param {HTMLElement|null} legendContainer - 若提供，MA/均價線 legend 會 portal 到該節點（例如 Card extra），不再 overlay 在 K 棒上
  */
-const KLineChart = ({ 
+const KLineChart = ({
   symbol,           // 股票代號
   positions = [],   // Position 數據
-  height = 400
+  height = 400,
+  legendContainer = null,
 }) => {
   const chartContainerRef = useRef(null)
   const chartRef = useRef(null)
@@ -466,69 +469,97 @@ const KLineChart = ({
   const toggleMA = (period) =>
     setEnabledMAs((prev) => ({ ...prev, [period]: !prev[period] }))
 
-  return (
-    <div style={{ position: 'relative', width: '100%', height: `${height}px` }}>
-      {!loading && !error && (
-        <div style={{
-          position: 'absolute',
-          top: 8,
-          left: 12,
-          zIndex: 5,
-          display: 'flex',
-          gap: 6,
-          fontSize: 12,
-          fontFamily: 'system-ui, sans-serif',
-          pointerEvents: 'none', // 整體不擋滑鼠（讓 chart 接到 hover / crosshair）
-        }}>
-          {MA_CONFIG.map(({ period, color }) => {
-            const enabled = !!enabledMAs[period]
-            const value = maValues[period]
-            return (
-              <span
-                key={period}
-                onClick={() => toggleMA(period)}
-                title={enabled ? `點擊隱藏 MA${period}` : `點擊顯示 MA${period}`}
-                style={{
-                  pointerEvents: 'auto', // 只有 chip 本身可點
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  border: `1px solid ${enabled ? color : '#d9d9d9'}`,
-                  background: enabled ? 'rgba(255,255,255,0.85)' : 'rgba(245,245,245,0.85)',
-                  color: enabled ? color : '#bbb',
-                  fontWeight: 500,
-                  transition: 'all 0.15s',
-                }}
-              >
-                MA{period}
-                {enabled && value != null && (
-                  <span style={{ marginLeft: 4, fontWeight: 400 }}>{value.toFixed(2)}</span>
-                )}
-              </span>
-            )
-          })}
-          {/* 進出場均價虛線 toggle（dashed border 呼應虛線視覺） */}
+  // Legend chips（MA 切換 + 均價線 toggle）— 兩種模式共用，差別只在外層 wrapper
+  const legendChips = (
+    <>
+      {MA_CONFIG.map(({ period, color }) => {
+        const enabled = !!enabledMAs[period]
+        const value = maValues[period]
+        return (
           <span
-            onClick={() => setShowAvgLines((v) => !v)}
-            title={showAvgLines ? '點擊隱藏進出場均價虛線' : '點擊顯示進出場均價虛線'}
+            key={period}
+            onClick={() => toggleMA(period)}
+            title={enabled ? `點擊隱藏 MA${period}` : `點擊顯示 MA${period}`}
             style={{
               pointerEvents: 'auto',
               cursor: 'pointer',
               userSelect: 'none',
               padding: '2px 6px',
               borderRadius: 4,
-              border: `1px dashed ${showAvgLines ? '#666' : '#d9d9d9'}`,
-              background: showAvgLines ? 'rgba(255,255,255,0.85)' : 'rgba(245,245,245,0.85)',
-              color: showAvgLines ? '#333' : '#bbb',
+              border: `1px solid ${enabled ? color : '#d9d9d9'}`,
+              background: enabled ? 'rgba(255,255,255,0.85)' : 'rgba(245,245,245,0.85)',
+              color: enabled ? color : '#bbb',
               fontWeight: 500,
               transition: 'all 0.15s',
             }}
           >
-            均價線
+            MA{period}
+            {enabled && value != null && (
+              <span style={{ marginLeft: 4, fontWeight: 400 }}>{value.toFixed(2)}</span>
+            )}
           </span>
-        </div>
-      )}
+        )
+      })}
+      <span
+        onClick={() => setShowAvgLines((v) => !v)}
+        title={showAvgLines ? '點擊隱藏進出場均價虛線' : '點擊顯示進出場均價虛線'}
+        style={{
+          pointerEvents: 'auto',
+          cursor: 'pointer',
+          userSelect: 'none',
+          padding: '2px 6px',
+          borderRadius: 4,
+          border: `1px dashed ${showAvgLines ? '#666' : '#d9d9d9'}`,
+          background: showAvgLines ? 'rgba(255,255,255,0.85)' : 'rgba(245,245,245,0.85)',
+          color: showAvgLines ? '#333' : '#bbb',
+          fontWeight: 500,
+          transition: 'all 0.15s',
+        }}
+      >
+        均價線
+      </span>
+    </>
+  )
+
+  // Portal 模式：legend 渲染到外部容器（例如 Card extra），不疊在 K 棒上
+  // Overlay 模式：fallback — 沒提供容器時維持原本左上角絕對定位
+  const legendNode = !loading && !error
+    ? (legendContainer
+        ? createPortal(
+            <div style={{
+              display: 'flex',
+              gap: 4,
+              fontSize: 12,
+              fontFamily: 'system-ui, sans-serif',
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+            }}>
+              {legendChips}
+            </div>,
+            legendContainer
+          )
+        : (
+            <div style={{
+              position: 'absolute',
+              top: 8,
+              left: 12,
+              zIndex: 5,
+              display: 'flex',
+              gap: 6,
+              fontSize: 12,
+              fontFamily: 'system-ui, sans-serif',
+              pointerEvents: 'none',
+            }}>
+              {legendChips}
+            </div>
+          )
+      )
+    : null
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: `${height}px` }}>
+      {legendNode}
       {loading && (
         <div style={{
           position: 'absolute',

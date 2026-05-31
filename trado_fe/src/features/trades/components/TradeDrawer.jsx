@@ -132,6 +132,8 @@ const TradeDrawer = ({
   const [form] = Form.useForm(); // 倉位表格表單
   const [editingKey, setEditingKey] = useState('');
   const isEditing = record => record.key === editingKey;
+  // K 線圖 legend 容器：用 callback ref 拿到 Card extra 的 DOM 節點，讓 KLineChart 把 MA/均價線 chip portal 進去
+  const [klineLegendNode, setKlineLegendNode] = useState(null)
 
   // 從 tradeData 取得倉位調整資料
   const positionAdjustments = tradeData?.positionAdjustments || []
@@ -460,11 +462,13 @@ const TradeDrawer = ({
               title="K 線圖"
               size="small"
               style={{ marginBottom: 16 }}
+              extra={<div ref={setKlineLegendNode} style={{ display: 'flex', alignItems: 'center' }} />}
             >
               <KLineChart
                 symbol={tradeData.symbol}
                 positions={positionAdjustments}
                 height={isWideLayout ? wideChartHeight : 400}
+                legendContainer={klineLegendNode}
               />
             </Card>
 
