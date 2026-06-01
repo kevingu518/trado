@@ -14,6 +14,8 @@ import { useTrades } from '../hooks/useTrades'
 import { tradesService } from '../services/trades'
 import { positionsService } from '../services/positions'
 import { useShortcut } from '@/shortcuts'
+import { useStockCategories } from '@/features/stockCategories/hooks/useStockCategories'
+import SymbolCategoryCell from '@/features/stockCategories/components/SymbolCategoryCell'
 
 import AddTradeModal from '../components/AddTradeModal'
 import AddPositionModal from '../components/AddPositionModal'
@@ -142,6 +144,13 @@ const Transactions = () => {
     status: statusFilter === 'all' ? undefined : statusFilter === 'completed' ? 'closed' : statusFilter,
     strategy: strategyFilter,
   })
+  // 持股族群（族群 tag 顯示與編輯）
+  const {
+    list: stockCategories,
+    mappings: symbolCategoryMap,
+    setSymbolCategory,
+  } = useStockCategories()
+
   // 從 tradesData 取得要顯示的資料
   const displayData = useMemo(() => {
     if (!tradesData) return []
@@ -601,6 +610,20 @@ const Transactions = () => {
       key: 'symbol',
       width: 80,
       align: 'center',
+    },
+    {
+      title: '族群',
+      key: 'stockCategory',
+      width: 110,
+      align: 'center',
+      render: (_, record) => (
+        <SymbolCategoryCell
+          symbol={record.symbol}
+          categoryId={symbolCategoryMap[record.symbol] || null}
+          categories={stockCategories}
+          onSelect={setSymbolCategory}
+        />
+      ),
     },
     {
       title: '開倉日',

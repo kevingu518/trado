@@ -10,6 +10,7 @@ import {
   LineChartOutlined,
   ContainerOutlined,
   HighlightOutlined,
+  TagsOutlined,
 } from '@ant-design/icons';
 import { FaRegUser } from "react-icons/fa";
 import { logout } from '../api/api_user';
@@ -40,6 +41,11 @@ const items = [
     label: '策略',
   },
   {
+    key: '7',
+    icon: <TagsOutlined />,
+    label: '族群',
+  },
+  {
     key: '4',
     icon: <SettingOutlined />,
     label: '設定',
@@ -52,6 +58,7 @@ const pathToKeyMap = {
   '/transactions': '1', // transactions 也對應交易紀錄
   '/dashboard': '2',
   '/strategy': '3',
+  '/stock-categories': '7',
   '/settings': '4',
 };
 
@@ -60,6 +67,7 @@ const keyToPathMap = {
   '1': '/trades',
   '2': '/dashboard',
   '3': '/strategy',
+  '7': '/stock-categories',
   '4': '/settings',
 };
 

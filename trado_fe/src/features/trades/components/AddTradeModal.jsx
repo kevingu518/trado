@@ -1,9 +1,10 @@
 // src/features/trades/components/AddTradeModal.jsx
 import React, { useEffect, useMemo, useRef } from 'react'
-import { Modal, Form, Input, Select, DatePicker, InputNumber, Button, Space, message, Segmented, Switch } from 'antd'
+import { Modal, Form, Input, Select, DatePicker, InputNumber, Button, Space, message, Segmented, Switch, Tag } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useStrategies } from '@/features/strategies/hooks/useStrategies'
+import { useStockCategories } from '@/features/stockCategories/hooks/useStockCategories'
 
 const { Option } = Select
 
@@ -22,6 +23,14 @@ const AddTradeModal = ({
   const withDeposit = Form.useWatch('withDeposit', form)
   const positionShares = Form.useWatch('positionShares', form)
   const positionPrice = Form.useWatch('positionPrice', form)
+  const symbolValue = Form.useWatch('symbol', form)
+
+  // 族群（只在 modal 開啟時拉資料）
+  const {
+    list: stockCategories,
+    mappings: symbolCategoryMap,
+    setSymbolCategory,
+  } = useStockCategories(visible)
 
   // 獲取策略列表（只獲取啟用的策略）
   const { data: strategiesData, loading: strategiesLoading } = useStrategies(
@@ -49,6 +58,20 @@ const AddTradeModal = ({
     return strategiesData?.list?.find(s => s.isSystem)?.id || null
   }, [strategiesData])
 
+  // symbol 變動時，自動帶入既有族群歸類
+  useEffect(() => {
+    if (!visible) return
+    if (!symbolValue || symbolValue.length !== 4) return
+    const mappedId = symbolCategoryMap[symbolValue]
+    // 已有歸類 → 自動帶入；尚未歸類則不動使用者的選擇
+    if (mappedId) {
+      const current = form.getFieldValue('category')
+      if (current !== mappedId) {
+        form.setFieldsValue({ category: mappedId })
+      }
+    }
+  }, [symbolValue, symbolCategoryMap, visible, form])
+
   // 開啟「同步補入金」時，預設金額帶入買入成本（股數 × 價格）
   useEffect(() => {
     if (withDeposit && positionShares && positionPrice) {
@@ -75,6 +98,7 @@ const AddTradeModal = ({
         symbol: initialData.symbol,
         direction: initialData.direction,
         strategy: strategyValue,
+        category: initialData.symbol ? (symbolCategoryMap[initialData.symbol] || null) : null,
         createdAt: initialData.createdAt ? dayjs(initialData.createdAt) : null,
       })
     } else if (visible && !isEditMode) {
@@ -83,12 +107,13 @@ const AddTradeModal = ({
       form.setFieldsValue({
         direction: 'long',
         strategy: systemStrategyId,
+        category: null,
         withPosition: false,
         withDeposit: false,
         createdAt: dayjs(),
       })
     }
-  }, [visible, isEditMode, initialData, form, strategyOptions, systemStrategyId])
+  }, [visible, isEditMode, initialData, form, strategyOptions, systemStrategyId, symbolCategoryMap])
 
   // 處理保存
   const handleSave = async () => {
@@ -147,7 +172,18 @@ const AddTradeModal = ({
       } else {
         await onSave(tradeData, positionData, depositData)
       }
-      
+
+      // 設定 / 更新 symbol 的族群歸類（若使用者有選擇且與現況不同）
+      const targetSymbol = values.symbol || initialData?.symbol
+      if (targetSymbol && values.category !== undefined) {
+        const currentMapped = symbolCategoryMap[targetSymbol] || null
+        const next = values.category || null
+        if (next && next !== currentMapped) {
+          // fire and forget — 失敗不阻擋 trade 建立
+          setSymbolCategory(targetSymbol, next).catch(() => {})
+        }
+      }
+
       form.resetFields()
       onClose()
     } catch (error) {
@@ -251,7 +287,7 @@ const AddTradeModal = ({
             rules={isEditMode ? [] : [{ required: true, message: '請選擇策略' }]} // 編輯模式時非必填
             initialValue="none"
           >
-            <Select 
+            <Select
               placeholder="請選擇策略"
               className='rounded-xs'
               style={{ borderRadius: '4px' }}
@@ -265,6 +301,35 @@ const AddTradeModal = ({
             </Select>
           </Form.Item>
         </div>
+
+        <Form.Item
+          label={
+            <span>
+              族群
+              {symbolValue && symbolValue.length === 4 && symbolCategoryMap[symbolValue] && (
+                <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>
+                  （此股票已歸類，可在此修改）
+                </span>
+              )}
+            </span>
+          }
+          name="category"
+        >
+          <Select
+            placeholder="選填（會記住此股票的族群）"
+            allowClear
+            className='rounded-xs'
+            style={{ borderRadius: '4px' }}
+            optionLabelProp="label"
+            popupMatchSelectWidth={false}
+          >
+            {stockCategories.map((c) => (
+              <Option key={c.id} value={c.id} label={c.name}>
+                <Tag color={c.color} style={{ margin: 0 }}>{c.name}</Tag>
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
 
         {/* 同時建立倉位（僅新增模式） */}
         {!isEditMode && (

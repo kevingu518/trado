@@ -15,6 +15,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Transactions from './pages/Transactions';
 import Trades from './features/trades/pages';
 import Strategies from './features/strategies/pages';
+import StockCategories from './features/stockCategories/pages';
 import Dashboard from './features/dashboard/pages';
 import Settings from './features/account/pages/Settings';
 // Components
@@ -51,6 +52,7 @@ function App() {
               <Route path="trades" element={<Trades />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="strategy" element={<Strategies />} />
+              <Route path="stock-categories" element={<StockCategories />} />
               <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<div>使用者資料頁面</div>} />
             </Route>

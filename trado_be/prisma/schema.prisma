@@ -61,6 +61,8 @@ model User {
   strategies     Strategy[]
   accountTransactions AccountTransaction[]
   balanceSnapshots    BalanceSnapshot[]
+  stockCategories     StockCategory[]
+  stockCategoryMaps   StockCategoryMap[]
 
   @@index([googleId])
   @@index([email])
@@ -248,6 +250,37 @@ model BalanceSnapshot {
 
   @@unique([userId, date])
   @@index([userId, date])
+}
+
+// 持股族群（用戶自訂分類，例如：半導體、AI、高股息）
+model StockCategory {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  userId      String   @db.VarChar(36)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String   @db.VarChar(100)
+  color       String   @db.VarChar(20)          // AntD token: red/orange/gold/lime/green/cyan/blue/geekblue/purple/magenta
+  targetRatio Decimal? @db.Decimal(5, 4)        // 目標佔比 0.0000-1.0000（可選）
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @db.Timestamp(6)
+  mappings    StockCategoryMap[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+// Symbol 與 族群 的對應（單選：每個 (userId, symbol) 只能對應一個族群）
+model StockCategoryMap {
+  userId     String        @db.VarChar(36)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol     String        @db.VarChar(20)
+  categoryId String        @db.VarChar(36)
+  category   StockCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime      @updatedAt @db.Timestamp(6)
+
+  @@id([userId, symbol])
+  @@index([categoryId])
 }
 
 // 個股每日 OHLCV — 多用戶共用、不掛 userId

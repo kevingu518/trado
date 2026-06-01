@@ -11,6 +11,7 @@ import accountRoutes from './routes/accountRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import devRoutes from './routes/devRoutes.js';
 import stockRoutes from './routes/stockRoutes.js';
+import stockCategoryRoutes from './routes/stockCategoryRoutes.js';
 import './jobs/snapshotJob.js';
 import './jobs/stockPriceJob.js';
 
@@ -61,6 +62,7 @@ app.use('/api/account', accountRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/dev', devRoutes);
 app.use('/api/stocks', stockRoutes);
+app.use('/api/stock-categories', stockCategoryRoutes);
 
 // 404 handler
 app.use((req, res) => {
