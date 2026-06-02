@@ -2,13 +2,16 @@ import prisma from '../config/database.js';
 import { AppError, NotFoundError, ValidationError } from '../errors/index.js';
 import accountService from './AccountService.js';
 import stockPriceService from './StockPriceService.js';
+import { DEFAULT_STOCK_CATEGORIES } from '../config/defaultStockCategories.js';
 
 const VALID_COLORS = [
-  'red', 'orange', 'gold', 'lime', 'green',
-  'cyan', 'blue', 'geekblue', 'purple', 'magenta',
+  'red', 'orange', 'yellow',
+  'green', 'teal', 'cyan',
+  'blue', 'indigo', 'purple',
+  'pink', 'gray', 'slate',
 ];
 
-const MAX_CATEGORIES_PER_USER = 30;
+const MAX_CATEGORIES_PER_USER = 60;
 
 function validateColor(color) {
   if (!color || !VALID_COLORS.includes(color)) {
@@ -28,6 +31,27 @@ function validateTargetRatio(ratio) {
 }
 
 class StockCategoryService {
+  /**
+   * 為指定 user 補滿預設族群（已存在的同名族群不會被覆蓋）
+   * - 新註冊呼叫一次
+   * - 也可用在 migration / 一鍵補回預設
+   * @param {string} userId
+   * @param {object} [opts]
+   * @param {object} [opts.tx] 傳入 Prisma transaction client（在 user 建立的 transaction 內呼叫時）
+   */
+  async seedDefaultCategories(userId, opts = {}) {
+    const client = opts.tx || prisma;
+    const data = DEFAULT_STOCK_CATEGORIES.map((c, idx) => ({
+      userId,
+      name: c.name,
+      color: c.color,
+      sortOrder: idx,
+      isStandby: false,
+    }));
+    // skipDuplicates 確保已存在同名族群不會被覆蓋
+    await client.stockCategory.createMany({ data, skipDuplicates: true });
+  }
+
   async listCategories(userId) {
     return await prisma.stockCategory.findMany({
       where: { userId },
@@ -59,6 +83,7 @@ class StockCategoryService {
           name,
           color: data.color,
           targetRatio,
+          isStandby: !!data.isStandby,
           sortOrder: Number.isInteger(data.sortOrder) ? data.sortOrder : count,
         },
       });
@@ -137,6 +162,9 @@ class StockCategoryService {
     if (data.sortOrder !== undefined && Number.isInteger(data.sortOrder)) {
       updates.sortOrder = data.sortOrder;
     }
+    if (data.isStandby !== undefined) {
+      updates.isStandby = !!data.isStandby;
+    }
 
     try {
       return await prisma.stockCategory.update({ where: { id }, data: updates });
@@ -146,6 +174,59 @@ class StockCategoryService {
       }
       throw err;
     }
+  }
+
+  /**
+   * 批次更新排序 + Standby 狀態（拖曳後使用）
+   * @param {string} userId
+   * @param {object} params
+   * @param {string[]} params.activeIds   持有 pool 的 id 順序
+   * @param {string[]} params.standbyIds  Standby pool 的 id 順序
+   *
+   * - 兩個 array 內無重複；id 都必須屬於此使用者
+   * - sortOrder 全局連續：active 從 0 開始、standby 接著
+   * - isStandby 依所在 pool 自動設定
+   */
+  async reorderCategories(userId, { activeIds = [], standbyIds = [] }) {
+    if (!Array.isArray(activeIds) || !Array.isArray(standbyIds)) {
+      throw new ValidationError('activeIds and standbyIds must be arrays');
+    }
+    const allIds = [...activeIds, ...standbyIds];
+    if (allIds.length === 0) {
+      throw new ValidationError('至少要包含一個 id');
+    }
+    if (new Set(allIds).size !== allIds.length) {
+      throw new ValidationError('ids must be unique across both pools');
+    }
+
+    const owned = await prisma.stockCategory.findMany({
+      where: { userId, id: { in: allIds } },
+      select: { id: true },
+    });
+    if (owned.length !== allIds.length) {
+      throw new ValidationError('部分族群 id 不存在或不屬於此使用者');
+    }
+
+    const updates = [];
+    activeIds.forEach((id, idx) => {
+      updates.push(
+        prisma.stockCategory.update({
+          where: { id },
+          data: { sortOrder: idx, isStandby: false },
+        }),
+      );
+    });
+    standbyIds.forEach((id, idx) => {
+      updates.push(
+        prisma.stockCategory.update({
+          where: { id },
+          data: { sortOrder: activeIds.length + idx, isStandby: true },
+        }),
+      );
+    });
+
+    await prisma.$transaction(updates);
+    return await this.listCategories(userId);
   }
 
   async deleteCategory(userId, id) {
@@ -281,8 +362,8 @@ class StockCategoryService {
     const totalAssets = cashBalance + positionsValue;
     const denom = totalAssets > 0 ? totalAssets : 1; // 避免除 0
 
-    // 6) 組各族群結果
-    const categoriesResult = categories.map((c) => {
+    // 6) 組族群結果 — 拆 active vs standby
+    const buildEntry = (c) => {
       const entry = byCategory.get(c.id) || { value: 0, symbols: [] };
       const targetRatio = c.targetRatio === null || c.targetRatio === undefined
         ? null
@@ -294,13 +375,21 @@ class StockCategoryService {
         color: c.color,
         targetRatio,
         sortOrder: c.sortOrder,
+        isStandby: c.isStandby,
         symbolCount: entry.symbols.length,
         marketValue: entry.value,
         actualRatio,
         deltaRatio: targetRatio === null ? null : actualRatio - targetRatio,
         symbols: entry.symbols,
       };
-    });
+    };
+
+    const activeCategories = categories.filter(c => !c.isStandby).map(buildEntry);
+    // Standby 警告：standby 族群但仍有持股
+    const standbyWithPositions = categories
+      .filter(c => c.isStandby)
+      .map(buildEntry)
+      .filter(c => c.symbolCount > 0);
 
     const unclassifiedValue = unclassifiedSymbols.reduce((s, x) => s + (x.value || 0), 0);
 
@@ -308,12 +397,13 @@ class StockCategoryService {
       totalAssets,
       cashBalance,
       positionsValue,
-      categories: categoriesResult,
+      categories: activeCategories,
       unclassified: {
         marketValue: unclassifiedValue,
         actualRatio: unclassifiedValue / denom,
         symbols: unclassifiedSymbols,
       },
+      standbyWithPositions,
     };
   }
 

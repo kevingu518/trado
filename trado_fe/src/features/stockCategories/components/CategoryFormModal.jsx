@@ -1,6 +1,8 @@
-import React, { useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, Tag } from 'antd';
-import { CATEGORY_COLORS, pickNextColor } from '../config';
+import React from 'react';
+import { Modal, Form, Input } from 'antd';
+import { CheckOutlined } from '@ant-design/icons';
+import { pickNextColor } from '../config';
+import { useThemePalette } from '../hooks/useThemePalette';
 
 const CategoryFormModal = ({
   visible,
@@ -13,25 +15,21 @@ const CategoryFormModal = ({
   const [form] = Form.useForm();
   const isEdit = !!initialData;
 
-  useEffect(() => {
-    if (!visible) return;
+  // 在 modal 完全打開後填入初始值（避免 mount 時機問題）
+  const handleAfterOpenChange = (open) => {
+    if (!open) return;
     if (initialData) {
       form.setFieldsValue({
         name: initialData.name,
         color: initialData.color,
-        targetRatioPct:
-          initialData.targetRatio === null || initialData.targetRatio === undefined
-            ? null
-            : Math.round(initialData.targetRatio * 10000) / 100, // 0.42 -> 42
       });
     } else {
       form.resetFields();
       form.setFieldsValue({
         color: pickNextColor(existingCategories),
-        targetRatioPct: null,
       });
     }
-  }, [visible, initialData, existingCategories, form]);
+  };
 
   const handleOk = async () => {
     try {
@@ -39,10 +37,6 @@ const CategoryFormModal = ({
       const payload = {
         name: values.name?.trim(),
         color: values.color,
-        targetRatio:
-          values.targetRatioPct === null || values.targetRatioPct === undefined || values.targetRatioPct === ''
-            ? null
-            : Number((values.targetRatioPct / 100).toFixed(4)),
       };
       await onSubmit(payload);
     } catch {
@@ -56,12 +50,13 @@ const CategoryFormModal = ({
       open={visible}
       onCancel={onClose}
       onOk={handleOk}
+      afterOpenChange={handleAfterOpenChange}
       confirmLoading={loading}
       okText={isEdit ? '儲存' : '建立'}
       cancelText="取消"
-      destroyOnClose
+      forceRender
     >
-      <Form form={form} layout="vertical" preserve={false}>
+      <Form form={form} layout="vertical">
         <Form.Item
           label="族群名稱"
           name="name"
@@ -70,65 +65,61 @@ const CategoryFormModal = ({
             { max: 100, message: '最多 100 個字元' },
           ]}
         >
-          <Input placeholder="例如：半導體、AI、高股息" autoFocus />
+          <Input
+            placeholder="例如：半導體、AI、高股息"
+            autoFocus
+            style={{ borderRadius: 4 }}
+          />
         </Form.Item>
 
         <Form.Item label="顏色" name="color" rules={[{ required: true, message: '請選擇顏色' }]}>
           <ColorPicker />
         </Form.Item>
 
-        <Form.Item
-          label="目標佔比 (%)"
-          name="targetRatioPct"
-          tooltip="可選。佔總資產（含現金）的目標比例"
-          rules={[
-            {
-              validator: (_, v) => {
-                if (v === null || v === undefined || v === '') return Promise.resolve();
-                if (v < 0 || v > 100) return Promise.reject(new Error('範圍 0 ~ 100'));
-                return Promise.resolve();
-              },
-            },
-          ]}
-        >
-          <InputNumber
-            min={0}
-            max={100}
-            step={1}
-            precision={2}
-            placeholder="未設定"
-            style={{ width: 160 }}
-            suffix="%"
-          />
-        </Form.Item>
+        <div style={{ color: '#999', fontSize: 12, marginTop: -8 }}>
+          目標佔比請在列表中直接點數字編輯。
+        </div>
       </Form>
     </Modal>
   );
 };
 
-const ColorPicker = ({ value, onChange }) => (
-  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-    {CATEGORY_COLORS.map((c) => {
-      const selected = value === c;
-      return (
-        <Tag.CheckableTag
-          key={c}
-          checked={selected}
-          onChange={() => onChange?.(c)}
-          style={{
-            padding: 0,
-            border: selected ? '2px solid #1677ff' : '2px solid transparent',
-            borderRadius: 6,
-            background: 'transparent',
-          }}
-        >
-          <Tag color={c} style={{ margin: 0, minWidth: 56, textAlign: 'center' }}>
-            {c}
-          </Tag>
-        </Tag.CheckableTag>
-      );
-    })}
-  </div>
-);
+const ColorPicker = ({ value, onChange }) => {
+  const { names, palette } = useThemePalette();
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {names.map((name) => {
+        const hex = palette[name];
+        const selected = value === name;
+        return (
+          <button
+            key={name}
+            type="button"
+            onClick={() => onChange?.(name)}
+            aria-label={name}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 4,
+              background: hex,
+              border: selected ? '2px solid #1677ff' : '2px solid #fff',
+              outline: selected ? 'none' : '1px solid #e0e0e0',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              boxShadow: selected ? '0 0 0 2px rgba(22,119,255,0.2)' : 'none',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
+            }}
+          >
+            {selected && <CheckOutlined style={{ fontSize: 14 }} />}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 export default CategoryFormModal;

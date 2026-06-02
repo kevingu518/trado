@@ -4,6 +4,7 @@ import { useStockCategories } from '../hooks/useStockCategories';
 import { useAllocation } from '../hooks/useAllocation';
 import AllocationView from '../components/AllocationView';
 import ManageView from '../components/ManageView';
+import '../styles/index.scss';
 
 const StockCategoriesPage = () => {
   const [activeTab, setActiveTab] = useState('allocation');
@@ -13,7 +14,7 @@ const StockCategoriesPage = () => {
     loading: catLoading,
     mutating,
     createCategory,
-    bulkCreateCategories,
+    reorderCategories,
     updateCategory,
     deleteCategory,
     setSymbolCategory,
@@ -45,6 +46,7 @@ const StockCategoriesPage = () => {
         </div>
 
         <Tabs
+          className="StockCategories-tabs"
           activeKey={activeTab}
           onChange={setActiveTab}
           items={[
@@ -74,13 +76,12 @@ const StockCategoriesPage = () => {
                   maxCategories={maxCategories}
                   createCategory={createCategory}
                   updateCategory={updateCategory}
-                  bulkCreateCategories={bulkCreateCategories}
+                  reorderCategories={reorderCategories}
                   deleteCategory={deleteCategory}
                 />
               ),
             },
           ]}
-          style={{ flex: 1, minHeight: 0 }}
         />
       </div>
     </div>

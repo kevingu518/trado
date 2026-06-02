@@ -11,6 +11,7 @@ router.use(authenticate);
 router.get('/', asyncHandler(stockCategoryController.listCategories));
 router.post('/', asyncHandler(stockCategoryController.createCategory));
 router.post('/bulk', asyncHandler(stockCategoryController.bulkCreateCategories));
+router.put('/reorder', asyncHandler(stockCategoryController.reorderCategories));
 router.put('/:id', asyncHandler(stockCategoryController.updateCategory));
 router.delete('/:id', asyncHandler(stockCategoryController.deleteCategory));
 

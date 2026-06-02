@@ -49,6 +49,31 @@ export const useStockCategories = (enabled = true) => {
     return { err, result };
   }, [fetchAll]);
 
+  // Optimistic 拖曳排序：傳兩個 pool 的 id 順序；失敗自動 refetch 回滾
+  const reorderCategories = useCallback(async (activeIds, standbyIds) => {
+    const prev = list;
+    const idToCat = new Map(list.map((c) => [c.id, c]));
+    const merged = [
+      ...activeIds.map((id) => {
+        const c = idToCat.get(id);
+        return c ? { ...c, isStandby: false } : null;
+      }).filter(Boolean),
+      ...standbyIds.map((id) => {
+        const c = idToCat.get(id);
+        return c ? { ...c, isStandby: true } : null;
+      }).filter(Boolean),
+    ];
+    setList(merged);
+    const [err, result] = await to(stockCategoriesService.reorderCategories(activeIds, standbyIds));
+    if (err) {
+      setList(prev);
+      await fetchAll();
+      return { err };
+    }
+    if (Array.isArray(result)) setList(result);
+    return { err: null, result };
+  }, [list, fetchAll]);
+
   const updateCategory = useCallback(async (id, payload) => {
     setMutating(true);
     const [err, result] = await to(stockCategoriesService.editCategory(id, payload));
@@ -106,6 +131,7 @@ export const useStockCategories = (enabled = true) => {
     refetch: fetchAll,
     createCategory,
     bulkCreateCategories,
+    reorderCategories,
     updateCategory,
     deleteCategory,
     setSymbolCategory,

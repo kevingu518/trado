@@ -27,6 +27,13 @@ class StockCategoryController {
     res.json({ success: true, data: category });
   };
 
+  reorderCategories = async (req, res) => {
+    const userId = req.user.id;
+    const { activeIds = [], standbyIds = [] } = req.body;
+    const result = await stockCategoryService.reorderCategories(userId, { activeIds, standbyIds });
+    res.json({ success: true, data: result });
+  };
+
   deleteCategory = async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;

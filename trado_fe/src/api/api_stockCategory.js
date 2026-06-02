@@ -9,6 +9,8 @@ export const getStockCategoriesApi = () => request.get('/stock-categories');
 export const createStockCategoryApi = (data) => request.post('/stock-categories', data);
 export const bulkCreateStockCategoriesApi = (items) =>
   request.post('/stock-categories/bulk', { items });
+export const reorderStockCategoriesApi = (activeIds, standbyIds) =>
+  request.put('/stock-categories/reorder', { activeIds, standbyIds });
 export const updateStockCategoryApi = (id, data) => request.put(`/stock-categories/${id}`, data);
 export const deleteStockCategoryApi = (id) => request.delete(`/stock-categories/${id}`);
 

@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
-import { Card, Tag, Table, Spin, Empty, Tooltip, message } from 'antd';
+import { Card, Table, Spin, Empty, Tooltip, message } from 'antd';
 import { Pie } from '@ant-design/plots';
 import { ExclamationCircleFilled, WarningOutlined } from '@ant-design/icons';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import SymbolCategoryCell from './SymbolCategoryCell';
+import CategoryTag from './CategoryTag';
+import { useThemePalette } from '../hooks/useThemePalette';
 
 const fmtMoney = (n) => {
   if (n === null || n === undefined) return '—';
@@ -17,21 +19,6 @@ const fmtPct = (r, digits = 1) => {
   return `${(r * 100).toFixed(digits)}%`;
 };
 
-/**
- * AntD preset color name → CSS color (粗略對應，用在 pie chart fill)
- */
-const TAG_COLOR_HEX = {
-  red: '#cf1322',
-  orange: '#d4380d',
-  gold: '#d4b106',
-  lime: '#7cb305',
-  green: '#389e0d',
-  cyan: '#08979c',
-  blue: '#0958d9',
-  geekblue: '#1d39c4',
-  purple: '#531dab',
-  magenta: '#c41d7f',
-};
 const UNCLASSIFIED_COLOR = '#bfbfbf';
 
 const AllocationView = ({
@@ -42,12 +29,14 @@ const AllocationView = ({
   setSymbolCategory,
   onRefetch,
 }) => {
+  const { getHex } = useThemePalette();
   const totalAssets = data?.totalAssets ?? 0;
   const cashBalance = data?.cashBalance ?? 0;
   const positionsValue = data?.positionsValue ?? 0;
   const cats = useMemo(() => data?.categories ?? [], [data]);
   const unclassified = data?.unclassified;
   const unclassifiedSymbols = useMemo(() => unclassified?.symbols ?? [], [unclassified]);
+  const standbyWithPositions = useMemo(() => data?.standbyWithPositions ?? [], [data]);
 
   const hasHoldings = positionsValue > 0 || cashBalance > 0;
 
@@ -68,7 +57,7 @@ const AllocationView = ({
       .map((c) => ({
         type: c.name,
         value: c.marketValue,
-        color: TAG_COLOR_HEX[c.color] || '#888',
+        color: getHex(c.color),
       }));
     if (unclassified?.marketValue > 0) {
       items.push({
@@ -85,7 +74,7 @@ const AllocationView = ({
       });
     }
     return items;
-  }, [cats, unclassified, cashBalance]);
+  }, [cats, unclassified, cashBalance, getHex]);
 
   const tableColumns = [
     {
@@ -93,9 +82,7 @@ const AllocationView = ({
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
-        <Tag color={record.color} style={{ margin: 0, padding: '1px 10px', borderRadius: 4 }}>
-          {name}
-        </Tag>
+        <CategoryTag color={record.color}>{name}</CategoryTag>
       ),
     },
     {
@@ -284,7 +271,7 @@ const AllocationView = ({
                 summary.unclassifiedCount > 0 ? (
                   <Table.Summary.Row style={{ background: '#fafafa' }}>
                     <Table.Summary.Cell index={0}>
-                      <Tag style={{ margin: 0, padding: '1px 10px', borderRadius: 4 }}>未分類</Tag>
+                      <span style={{ display: 'inline-block', padding: '1px 10px', borderRadius: 4, background: '#f5f5f5', color: '#666', fontSize: 13, border: '1px solid #e0e0e0' }}>未分類</span>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={1} align="right">
                       <span style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -314,6 +301,83 @@ const AllocationView = ({
           )}
         </Card>
       </div>
+
+      {/* 觀察族群仍有持股 警告 */}
+      {standbyWithPositions.length > 0 && (
+        <Card
+          size="small"
+          title={
+            <span>
+              <WarningOutlined style={{ color: '#fa8c16', marginRight: 6 }} />
+              觀察族群仍有持股
+              <span style={{ marginLeft: 8, color: '#888', fontSize: 12, fontWeight: 'normal' }}>
+                {standbyWithPositions.length} 個族群 · 共
+                {' '}
+                {standbyWithPositions.reduce((s, c) => s + c.symbolCount, 0)} 檔
+              </span>
+            </span>
+          }
+          styles={{ body: { padding: 0 } }}
+        >
+          <Table
+            rowKey="id"
+            size="small"
+            dataSource={standbyWithPositions}
+            pagination={false}
+            tableLayout="auto"
+            columns={[
+              {
+                title: '族群',
+                dataIndex: 'name',
+                key: 'name',
+                render: (name, r) => (
+                  <CategoryTag color={r.color}>{name}</CategoryTag>
+                ),
+              },
+              {
+                title: '檔數',
+                dataIndex: 'symbolCount',
+                key: 'symbolCount',
+                width: 70,
+                align: 'right',
+                render: (n) => (
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{n}</span>
+                ),
+              },
+              {
+                title: '市值',
+                dataIndex: 'marketValue',
+                key: 'marketValue',
+                width: 120,
+                align: 'right',
+                render: (v) => (
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(v)}</span>
+                ),
+              },
+              {
+                title: '持有 symbols',
+                key: 'symbols',
+                render: (_, r) => (
+                  <span style={{ color: '#666', fontSize: 12 }}>
+                    {r.symbols.map((s) => s.symbol).join(', ')}
+                  </span>
+                ),
+              },
+            ]}
+          />
+          <div
+            style={{
+              padding: '6px 12px',
+              fontSize: 12,
+              color: '#874d00',
+              background: '#fffbe6',
+              borderTop: '1px solid #ffe58f',
+            }}
+          >
+            這些族群已被標為「觀察」但仍有持股。可在「管理」Tab 拖回「目標」，或在交易表把 symbol 重新歸類到其他族群。
+          </div>
+        </Card>
+      )}
 
       {/* 未分類持股 */}
       {unclassifiedSymbols.length > 0 && (

@@ -1,0 +1,52 @@
+// SymbolCategoryCell 的 popover 樣式覆蓋（focus 不要 box-shadow，跟 trades nav input 對齊）
+.SymbolCategoryPopover {
+  .ant-input,
+  .ant-input-affix-wrapper {
+    box-shadow: none !important;
+
+    &:focus,
+    &-focused {
+      box-shadow: none !important;
+    }
+  }
+}
+
+// 讓 StockCategories 的 Tabs 內容區能撐滿父容器（給 manage tab 的兩 pool 用）
+.StockCategories {
+  .StockCategories-tabs {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    .ant-tabs-content-holder {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .ant-tabs-content {
+      height: 100%;
+    }
+    .ant-tabs-tabpane-active {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  // ManageView 的 wrapper：toolbar + 兩 pool grid
+  .ManageView {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    .ManageView-pools {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+  }
+}

@@ -260,6 +260,7 @@ model StockCategory {
   name        String   @db.VarChar(100)
   color       String   @db.VarChar(20)          // AntD token: red/orange/gold/lime/green/cyan/blue/geekblue/purple/magenta
   targetRatio Decimal? @db.Decimal(5, 4)        // 目標佔比 0.0000-1.0000（可選）
+  isStandby   Boolean  @default(false)          // true = 觀察清單，不算目標佔比、不在 pie chart
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now()) @db.Timestamp(6)
   updatedAt   DateTime @updatedAt @db.Timestamp(6)
@@ -267,6 +268,7 @@ model StockCategory {
 
   @@unique([userId, name])
   @@index([userId])
+  @@index([userId, isStandby])
 }
 
 // Symbol 與 族群 的對應（單選：每個 (userId, symbol) 只能對應一個族群）

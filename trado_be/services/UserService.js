@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import { NotFoundError, AppError } from '../errors/index.js';
 import { SYSTEM_STRATEGY_NAME } from './StrategyService.js';
+import stockCategoryService from './StockCategoryService.js';
 
 class UserService {
   /**
@@ -85,6 +86,9 @@ class UserService {
           isActive: true,
         },
       });
+
+      // 並 seed 一組預設持股族群
+      await stockCategoryService.seedDefaultCategories(user.id, { tx });
 
       return user;
     });

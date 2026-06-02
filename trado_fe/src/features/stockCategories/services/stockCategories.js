@@ -2,6 +2,7 @@ import {
   getStockCategoriesApi,
   createStockCategoryApi,
   bulkCreateStockCategoriesApi,
+  reorderStockCategoriesApi,
   updateStockCategoryApi,
   deleteStockCategoryApi,
   getStockCategoryAllocationApi,
@@ -24,6 +25,7 @@ const toFrontend = (c) => {
     color: c.color || 'blue',
     // 後端為 0.0~1.0 小數，前端統一保留小數（顯示時 *100）
     targetRatio: c.targetRatio === null || c.targetRatio === undefined ? null : parseFloat(c.targetRatio),
+    isStandby: !!c.isStandby,
     sortOrder: c.sortOrder ?? 0,
     symbolCount: c._count?.mappings ?? 0,
     createdAt: c.createdAt,
@@ -35,6 +37,7 @@ const toAPI = (data) => ({
   ...(data.name !== undefined && { name: data.name }),
   ...(data.color !== undefined && { color: data.color }),
   ...(data.targetRatio !== undefined && { targetRatio: data.targetRatio }),
+  ...(data.isStandby !== undefined && { isStandby: data.isStandby }),
   ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
 });
 
@@ -76,6 +79,12 @@ export const stockCategoriesService = {
       map[row.symbol] = row.categoryId;
     }
     return map;
+  },
+
+  async reorderCategories(activeIds, standbyIds) {
+    const res = await reorderStockCategoriesApi(activeIds, standbyIds);
+    const list = Array.isArray(res) ? res : (res?.data ?? []);
+    return list.map(toFrontend);
   },
 
   async fetchAllocation() {
