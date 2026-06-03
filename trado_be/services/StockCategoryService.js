@@ -46,7 +46,7 @@ class StockCategoryService {
       name: c.name,
       color: c.color,
       sortOrder: idx,
-      isStandby: false,
+      isStandby: true,
     }));
     // skipDuplicates 確保已存在同名族群不會被覆蓋
     await client.stockCategory.createMany({ data, skipDuplicates: true });

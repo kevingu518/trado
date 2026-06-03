@@ -36,6 +36,7 @@ const CategoryTag = ({
         border: '1px solid',
         cursor: onClick ? 'pointer' : 'default',
         userSelect: 'none',
+        whiteSpace: 'nowrap',
         transition: 'background 0.15s, border-color 0.15s',
         ...sizeStyle,
         ...themed,

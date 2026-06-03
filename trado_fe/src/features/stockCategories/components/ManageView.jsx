@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Button, Spin, message, Space, Tooltip } from 'antd';
-import { PlusOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Button, Spin, message, Space, Tooltip, Popconfirm } from 'antd';
+import { PlusOutlined, InfoCircleOutlined, ClearOutlined } from '@ant-design/icons';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import {
@@ -109,6 +109,20 @@ const ManageView = ({
 
   const handleUpdateTarget = async (record, newRatio) => {
     return await updateCategory(record.id, { targetRatio: newRatio });
+  };
+
+  // 一鍵把目標區全部搬到觀察區
+  const handleClearActivePool = async () => {
+    if (activeItems.length === 0) return;
+    const movedIds = activeItems.map((c) => c.id);
+    const newActiveIds = [];
+    const newStandbyIds = [...standbyItems.map((c) => c.id), ...movedIds];
+    const { err } = await reorderCategories(newActiveIds, newStandbyIds);
+    if (err) {
+      message.error(err.msg || err.message || '清空失敗');
+      return;
+    }
+    message.success(`已將 ${movedIds.length} 個族群移到觀察區`);
   };
 
   // 點擊 → / ← 一鍵跨 pool（移到對面 pool 的尾端）
@@ -291,6 +305,7 @@ const ManageView = ({
             onDelete={handleDelete}
             onUpdateTarget={handleUpdateTarget}
             onMoveToOtherPool={handleMoveToOtherPool}
+            onClearAll={handleClearActivePool}
             onAdd={() => handleAdd(false)}
             isAtLimit={isAtLimit}
             mutating={mutating}
@@ -305,7 +320,6 @@ const ManageView = ({
             onDelete={handleDelete}
             onAdd={() => handleAdd(true)}
             isAtLimit={isAtLimit}
-            mutating={mutating}
           />
         </div>
       </DndContext>
@@ -336,6 +350,7 @@ const Pool = ({
   onDelete,
   onUpdateTarget,
   onMoveToOtherPool,
+  onClearAll,
   onAdd,
   isAtLimit,
   mutating,
@@ -377,6 +392,27 @@ const Pool = ({
           </Tooltip>
         )}
         <span style={{ marginLeft: 'auto', color: '#999', fontSize: 12 }}>{subtitle}</span>
+        {onClearAll && items.length > 0 && (
+          <Popconfirm
+            title="清空目標區？"
+            description={`${items.length} 個族群將全部移到觀察區`}
+            onConfirm={onClearAll}
+            okText="清空"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Tooltip title="把目標區的族群全部移到觀察區">
+              <Button
+                type="text"
+                size="small"
+                icon={<ClearOutlined />}
+                style={{ color: '#999', marginLeft: 4 }}
+              >
+                清空
+              </Button>
+            </Tooltip>
+          </Popconfirm>
+        )}
       </div>
 
       {/* scroll area (flex:1) */}
@@ -439,42 +475,6 @@ const Pool = ({
           )}
         </PerfectScrollbar>
       </SortableContext>
-
-      {/* footer add row (固定) */}
-      <button
-        type="button"
-        onClick={onAdd}
-        disabled={isAtLimit || mutating}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          width: '100%',
-          padding: '10px 12px',
-          background: 'transparent',
-          border: 'none',
-          borderTop: '1px solid #f0f0f0',
-          color: isAtLimit ? '#bbb' : '#888',
-          cursor: isAtLimit ? 'not-allowed' : 'pointer',
-          fontSize: 13,
-          textAlign: 'left',
-          flexShrink: 0,
-          transition: 'background 0.15s, color 0.15s',
-        }}
-        onMouseEnter={(e) => {
-          if (!isAtLimit) {
-            e.currentTarget.style.background = '#fff';
-            e.currentTarget.style.color = '#444';
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = isAtLimit ? '#bbb' : '#888';
-        }}
-      >
-        <PlusOutlined />
-        新增{poolId === POOL_STANDBY ? '觀察' : ''}族群
-      </button>
     </div>
   );
 };
@@ -489,7 +489,6 @@ const WatchlistPool = ({
   onDelete,
   onAdd,
   isAtLimit,
-  mutating,
 }) => {
   return (
     <div
@@ -533,42 +532,6 @@ const WatchlistPool = ({
         onAdd={onAdd}
         isAtLimit={isAtLimit}
       />
-
-      {/* footer */}
-      <button
-        type="button"
-        onClick={onAdd}
-        disabled={isAtLimit || mutating}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          width: '100%',
-          padding: '10px 12px',
-          background: 'transparent',
-          border: 'none',
-          borderTop: '1px solid #f0f0f0',
-          color: isAtLimit ? '#bbb' : '#888',
-          cursor: isAtLimit ? 'not-allowed' : 'pointer',
-          fontSize: 13,
-          textAlign: 'left',
-          flexShrink: 0,
-          transition: 'background 0.15s, color 0.15s',
-        }}
-        onMouseEnter={(e) => {
-          if (!isAtLimit) {
-            e.currentTarget.style.background = '#fff';
-            e.currentTarget.style.color = '#444';
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = isAtLimit ? '#bbb' : '#888';
-        }}
-      >
-        <PlusOutlined />
-        新增觀察族群
-      </button>
     </div>
   );
 };

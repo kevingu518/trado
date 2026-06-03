@@ -3,7 +3,8 @@
  *
  * 設計原則：
  *  - 色相分布廣（紅 / 橘 / 黃 / 綠 / 青 / 藍 / 靛 / 紫 / 粉 + 中性灰 / 黑）
- *  - 飽和度跟明度刻意對齊（Tailwind 500 系列為基底，微調）
+ *  - 飽和度與明度對齊 colorThemes.js 的沉穩 desaturated 調性
+ *    （HSL 大多落在 S=45–60% / L=40–48%）
  *  - 適合 Tag 「淺底 + 同色邊框 + 同色文字」風格
  *
  * DB 內存的是 color name（slot key），實際顏色由這裡定義；
@@ -18,18 +19,18 @@ export const COLOR_NAMES = [
 ];
 
 export const COLOR_PALETTE = {
-  red:    '#ef4444',
-  orange: '#f97316',
-  yellow: '#eab308',
-  green:  '#22c55e',
-  teal:   '#14b8a6',
-  cyan:   '#06b6d4',
-  blue:   '#3b82f6',
-  indigo: '#6366f1',
-  purple: '#a855f7',
-  pink:   '#ec4899',
-  gray:   '#6b7280',
-  slate:  '#334155',  // 近黑，做為「深色 / 中性」slot
+  red:    '#c0413a',  // 沉穩磚紅（呼應主題 red #c92a2a）
+  orange: '#c95f1f',  // 焦糖橘
+  yellow: '#b88a1f',  // 琥珀芥末（避免螢光黃）
+  green:  '#3f8f4e',  // 同主題 green
+  teal:   '#1d8079',  // 暗青綠（呼應主題 teal #0f766e）
+  cyan:   '#2c7da3',  // 灰青
+  blue:   '#3d6bb3',  // 同主題 blue 家族
+  indigo: '#5a55b8',  // 灰靛
+  purple: '#7857c2',  // 灰紫（呼應主題 purple #5c4b86）
+  pink:   '#b85285',  // 玫瑰
+  gray:   '#6b7280',  // 中性灰
+  slate:  '#3f4e63',  // 深灰藍，做為「深色 / 中性」slot
 };
 
 /**

@@ -48,25 +48,17 @@ const CategoryRow = ({
       className="CategoryRow"
     >
       <div
+        {...attributes}
+        {...listeners}
         role={onMoveToOtherPool ? 'button' : undefined}
         tabIndex={onMoveToOtherPool ? 0 : undefined}
         onClick={onMoveToOtherPool ? () => onMoveToOtherPool(category) : undefined}
-        onKeyDown={
-          onMoveToOtherPool
-            ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onMoveToOtherPool(category);
-                }
-              }
-            : undefined
-        }
         title={
           onMoveToOtherPool
             ? category.isStandby
-              ? '點擊移到「目標」'
-              : '點擊移到「觀察」'
-            : undefined
+              ? '點擊移到「目標」／拖曳排序'
+              : '點擊移到「觀察」／拖曳排序'
+            : '拖曳排序'
         }
         style={{
           display: 'flex',
@@ -74,7 +66,9 @@ const CategoryRow = ({
           padding: '10px 12px',
           borderBottom: '1px solid #f0f0f0',
           gap: 12,
-          cursor: onMoveToOtherPool ? 'pointer' : 'default',
+          cursor: 'grab',
+          touchAction: 'none',
+          userSelect: 'none',
         }}
         onMouseEnter={(e) => {
           if (!isDragging) e.currentTarget.style.background = '#fafafa';
@@ -83,32 +77,22 @@ const CategoryRow = ({
           if (!isDragging) e.currentTarget.style.background = 'transparent';
         }}
       >
-        {/* drag handle */}
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="拖曳排序"
-          onClick={stopPropagation}
+        {/* drag handle (視覺提示，實際 listener 在整列) */}
+        <span
+          aria-hidden
           style={{
-            cursor: 'grab',
-            border: 'none',
-            background: 'transparent',
             color: '#bbb',
-            padding: '4px 2px',
             display: 'flex',
             alignItems: 'center',
-            touchAction: 'none',
+            padding: '4px 2px',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#888')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#bbb')}
         >
           <HolderOutlined style={{ fontSize: 14 }} />
-        </button>
+        </span>
 
         {/* tag */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <CategoryTag color={category.color}>{category.name}</CategoryTag>
+          <CategoryTag color={category.color} size="sm">{category.name}</CategoryTag>
         </div>
 
         {/* holding count */}
@@ -128,10 +112,12 @@ const CategoryRow = ({
         {showTarget && (
           <div
             onClick={stopPropagation}
+            onPointerDown={stopPropagation}
             style={{
               minWidth: 110,
               textAlign: 'right',
               fontSize: 13,
+              cursor: 'default',
             }}
           >
             <span style={{ color: '#999', fontSize: 12, marginRight: 4 }}>目標</span>
@@ -143,7 +129,11 @@ const CategoryRow = ({
         )}
 
         {/* actions */}
-        <div style={{ display: 'flex', gap: 2 }} onClick={stopPropagation}>
+        <div
+          style={{ display: 'flex', gap: 2, cursor: 'default' }}
+          onClick={stopPropagation}
+          onPointerDown={stopPropagation}
+        >
           {onMoveToOtherPool && (
             <Tooltip
               title={category.isStandby ? '移到「目標」' : '移到「觀察」'}

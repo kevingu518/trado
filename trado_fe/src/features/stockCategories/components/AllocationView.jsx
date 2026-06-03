@@ -82,7 +82,7 @@ const AllocationView = ({
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
-        <CategoryTag color={record.color}>{name}</CategoryTag>
+        <CategoryTag color={record.color} size="sm">{name}</CategoryTag>
       ),
     },
     {
@@ -172,7 +172,15 @@ const AllocationView = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
       {/* 摘要 */}
       <div
         style={{
@@ -214,7 +222,15 @@ const AllocationView = ({
       )}
 
       {/* 圖 + 表 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 12 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '320px 1fr',
+          gap: 12,
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
         <Card size="small" title="資產分配" styles={{ body: { padding: 12 } }}>
           {pieData.length > 0 ? (
             <Pie
@@ -254,7 +270,14 @@ const AllocationView = ({
           )}
         </Card>
 
-        <Card size="small" title="族群比例對照" styles={{ body: { padding: 0 } }}>
+        <Card
+          size="small"
+          title="族群比例對照"
+          style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          styles={{
+            body: { padding: 0, flex: 1, minHeight: 0, overflow: 'auto' },
+          }}
+        >
           {cats.length === 0 ? (
             <div style={{ padding: 16 }}>
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚未建立族群" />
@@ -267,6 +290,7 @@ const AllocationView = ({
               columns={tableColumns}
               pagination={false}
               tableLayout="auto"
+              sticky
               summary={() =>
                 summary.unclassifiedCount > 0 ? (
                   <Table.Summary.Row style={{ background: '#fafafa' }}>
@@ -331,7 +355,7 @@ const AllocationView = ({
                 dataIndex: 'name',
                 key: 'name',
                 render: (name, r) => (
-                  <CategoryTag color={r.color}>{name}</CategoryTag>
+                  <CategoryTag color={r.color} size="sm">{name}</CategoryTag>
                 ),
               },
               {
