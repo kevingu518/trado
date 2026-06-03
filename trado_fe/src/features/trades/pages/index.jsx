@@ -616,6 +616,14 @@ const Transactions = () => {
       key: 'stockCategory',
       width: 110,
       align: 'center',
+      sorter: (a, b) => {
+        const nameA = stockCategories.find(c => c.id === symbolCategoryMap[a.symbol])?.name || ''
+        const nameB = stockCategories.find(c => c.id === symbolCategoryMap[b.symbol])?.name || ''
+        if (!nameA && !nameB) return 0
+        if (!nameA) return 1
+        if (!nameB) return -1
+        return nameA.localeCompare(nameB, 'zh-Hant')
+      },
       render: (_, record) => (
         <SymbolCategoryCell
           symbol={record.symbol}
