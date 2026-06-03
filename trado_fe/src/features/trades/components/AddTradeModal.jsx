@@ -1,5 +1,5 @@
 // src/features/trades/components/AddTradeModal.jsx
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, Form, Input, Select, DatePicker, InputNumber, Button, Space, message, Segmented, Switch, Tag } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -19,7 +19,8 @@ const AddTradeModal = ({
   const symbolInputRef = useRef(null)
   const priceInputRef = useRef(null)
   const isEditMode = !!tradeId
-  const withPosition = Form.useWatch('withPosition', form)
+  // withPosition 用 local state 而非 useWatch（後者對未透過 Form.Item 註冊的欄位不穩定）
+  const [withPosition, setWithPosition] = useState(true)
   const withDeposit = Form.useWatch('withDeposit', form)
   const positionShares = Form.useWatch('positionShares', form)
   const positionPrice = Form.useWatch('positionPrice', form)
@@ -82,10 +83,48 @@ const AddTradeModal = ({
     }
   }, [withDeposit, positionShares, positionPrice, form])
 
-  // 初始化表單資料（編輯模式）
+  // 切換「同時建立倉位」OFF→ON 時，自動 focus 到價格欄位（初始開啟時不搶 focus，
+  // 因為 modal afterOpenChange 已 focus 股號）
+  const prevWithPositionRef = useRef(undefined)
   useEffect(() => {
-    if (visible && isEditMode && initialData) {
-      // 策略欄位優先用 strategyId；找不到就 fallback 到系統「未分類」
+    if (
+      visible && !isEditMode && withPosition &&
+      prevWithPositionRef.current === false
+    ) {
+      const id = setTimeout(() => priceInputRef.current?.focus(), 0)
+      prevWithPositionRef.current = withPosition
+      return () => clearTimeout(id)
+    }
+    prevWithPositionRef.current = withPosition
+  }, [visible, isEditMode, withPosition])
+
+  // 開啟 modal 時重置表單一次（只依賴 visible / isEditMode / initialData，
+  // 避免 strategies / categories 載入完成觸發再次 reset 而清掉使用者選擇）
+  useEffect(() => {
+    if (!visible) return
+    if (isEditMode && initialData) {
+      form.setFieldsValue({
+        symbol: initialData.symbol,
+        direction: initialData.direction,
+        createdAt: initialData.createdAt ? dayjs(initialData.createdAt) : null,
+      })
+    } else if (!isEditMode) {
+      form.resetFields()
+      form.setFieldsValue({
+        direction: 'long',
+        category: null,
+        withDeposit: false,
+        createdAt: dayjs(),
+      })
+      setWithPosition(true)
+    }
+  }, [visible, isEditMode, initialData, form])
+
+  // 策略資料載入後，填入策略預設值（不覆蓋已有選擇）
+  useEffect(() => {
+    if (!visible) return
+    if (isEditMode && initialData) {
+      // 編輯模式：根據 initialData 解析策略
       let strategyValue = systemStrategyId
       if (initialData.strategyId && strategyOptions.some(opt => opt.value === initialData.strategyId)) {
         strategyValue = initialData.strategyId
@@ -93,34 +132,32 @@ const AddTradeModal = ({
         const matchedStrategy = strategyOptions.find(opt => opt.label === initialData.strategy)
         if (matchedStrategy) strategyValue = matchedStrategy.value
       }
-
-      form.setFieldsValue({
-        symbol: initialData.symbol,
-        direction: initialData.direction,
-        strategy: strategyValue,
-        category: initialData.symbol ? (symbolCategoryMap[initialData.symbol] || null) : null,
-        createdAt: initialData.createdAt ? dayjs(initialData.createdAt) : null,
-      })
-    } else if (visible && !isEditMode) {
-      // 新增模式時重置表單；策略預設為系統「未分類」
-      form.resetFields()
-      form.setFieldsValue({
-        direction: 'long',
-        strategy: systemStrategyId,
-        category: null,
-        withPosition: false,
-        withDeposit: false,
-        createdAt: dayjs(),
-      })
+      if (strategyValue && form.getFieldValue('strategy') !== strategyValue) {
+        form.setFieldsValue({ strategy: strategyValue })
+      }
+    } else if (!isEditMode) {
+      // 新增模式：未選過策略才預設為系統「未分類」
+      if (systemStrategyId && !form.getFieldValue('strategy')) {
+        form.setFieldsValue({ strategy: systemStrategyId })
+      }
     }
-  }, [visible, isEditMode, initialData, form, strategyOptions, systemStrategyId, symbolCategoryMap])
+  }, [visible, isEditMode, initialData, form, strategyOptions, systemStrategyId])
+
+  // 編輯模式：symbol 對應的族群資料載入後，自動帶入
+  useEffect(() => {
+    if (!visible || !isEditMode || !initialData?.symbol) return
+    const mapped = symbolCategoryMap[initialData.symbol] || null
+    if (mapped && form.getFieldValue('category') !== mapped) {
+      form.setFieldsValue({ category: mapped })
+    }
+  }, [visible, isEditMode, initialData, symbolCategoryMap, form])
 
   // 處理保存
   const handleSave = async () => {
     try {
       // 編輯模式時，只驗證已填寫的欄位（非必填）
       // 新增模式時，驗證所有必填欄位
-      const values = isEditMode 
+      const values = isEditMode
         ? await form.validateFields().catch(() => form.getFieldsValue()) // 編輯模式：即使驗證失敗也取得表單值
         : await form.validateFields() // 新增模式：嚴格驗證
 
@@ -144,7 +181,7 @@ const AddTradeModal = ({
 
       // 組裝倉位資料（新增模式 + 開啟同時建立倉位）
       let positionData = null
-      if (!isEditMode && values.withPosition) {
+      if (!isEditMode && withPosition) {
         positionData = {
           action: values.direction === 'long' ? 'buy' : 'sell',
           shares: values.positionShares,
@@ -157,7 +194,7 @@ const AddTradeModal = ({
 
       // 組裝同步補入金資料（須同時建立倉位才會啟用）
       let depositData = null
-      if (!isEditMode && values.withPosition && values.withDeposit && values.depositAmount > 0) {
+      if (!isEditMode && withPosition && values.withDeposit && values.depositAmount > 0) {
         depositData = {
           amount: values.depositAmount,
           date: values.createdAt ? values.createdAt.format('YYYY-MM-DD') : null,
@@ -198,19 +235,36 @@ const AddTradeModal = ({
   // 處理取消
   const handleCancel = () => {
     form.resetFields()
+    setWithPosition(true)
     onClose()
   }
 
   return (
     <Modal
-      title={isEditMode ? "編輯交易記錄" : "新增交易記錄"}
+      title={
+        <div className='add-trade-modal-title'>
+          <span>{isEditMode ? '編輯交易記錄' : '新增交易記錄'}</span>
+          {!isEditMode && (
+            <Space size={6} align="center">
+              <Switch
+                size="small"
+                checked={withPosition}
+                onChange={setWithPosition}
+              />
+              <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-secondary)' }}>
+                同時建立倉位
+              </span>
+            </Space>
+          )}
+        </div>
+      }
       open={visible}
       onCancel={handleCancel}
       afterOpenChange={(open) => {
         if (open) symbolInputRef.current?.focus()
       }}
       className='add-trade-modal'
-      width={640}
+      width={560}
       footer={[
         <Button key="cancel" onClick={handleCancel} size="middle" style={{ borderRadius: '4px' }}>
           取消
@@ -231,6 +285,22 @@ const AddTradeModal = ({
         form={form}
         layout="vertical"
       >
+        <Form.Item
+          label="多空"
+          name="direction"
+          rules={isEditMode ? [] : [{ required: true, message: '請選擇多空' }]} // 編輯模式時非必填
+          initialValue="long"
+        >
+          <Segmented
+            options={[
+              { label: '多', value: 'long' },
+              { label: '空', value: 'short' }
+            ]}
+            block
+            style={{ borderRadius: '4px' }}
+          />
+        </Form.Item>
+
         <div className='useBetween gap-md'>
           <Form.Item
             label="股號"
@@ -255,42 +325,23 @@ const AddTradeModal = ({
             className='flex-1'
             rules={isEditMode ? [] : [{ required: true, message: '請選擇開倉日' }]} // 編輯模式時非必填
           >
-            <DatePicker 
-              placeholder="選擇開倉日" 
+            <DatePicker
+              placeholder="選擇開倉日"
               style={{ width: '100%', borderRadius: '4px' }}
               format="YYYY-MM-DD"
             />
           </Form.Item>
         </div>
-        <div className='useBetween gap-md'>
-          <Form.Item
-            label="多空"
-            name="direction"
-            className='flex-1'
-            rules={isEditMode ? [] : [{ required: true, message: '請選擇多空' }]} // 編輯模式時非必填
-            initialValue="long"
-          >
-            <Segmented
-              options={[
-                { label: '多', value: 'long' },
-                { label: '空', value: 'short' }
-              ]}
-              block
-              style={{ borderRadius: '4px' }}
-            />
-          </Form.Item>
 
+        <div className='useBetween gap-md'>
           <Form.Item
             label="策略"
             name="strategy"
             className='flex-1'
             rules={isEditMode ? [] : [{ required: true, message: '請選擇策略' }]} // 編輯模式時非必填
-            initialValue="none"
           >
             <Select
               placeholder="請選擇策略"
-              className='rounded-xs'
-              style={{ borderRadius: '4px' }}
               loading={strategiesLoading}
             >
               {strategyOptions.map(strategy => (
@@ -300,168 +351,139 @@ const AddTradeModal = ({
               ))}
             </Select>
           </Form.Item>
+
+          <Form.Item
+            label="族群"
+            name="category"
+            className='flex-1'
+          >
+            <Select
+              placeholder="搜尋族群"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              optionLabelProp="label"
+              popupMatchSelectWidth={false}
+            >
+              {stockCategories.map((c) => (
+                <Option key={c.id} value={c.id} label={c.name}>
+                  <Tag color={c.color} style={{ margin: 0 }}>{c.name}</Tag>
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
         </div>
 
-        <Form.Item
-          label={
-            <span>
-              族群
-              {symbolValue && symbolValue.length === 4 && symbolCategoryMap[symbolValue] && (
-                <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>
-                  （此股票已歸類，可在此修改）
-                </span>
-              )}
-            </span>
-          }
-          name="category"
-        >
-          <Select
-            placeholder="選填（會記住此股票的族群）"
-            allowClear
-            className='rounded-xs'
-            style={{ borderRadius: '4px' }}
-            optionLabelProp="label"
-            popupMatchSelectWidth={false}
-          >
-            {stockCategories.map((c) => (
-              <Option key={c.id} value={c.id} label={c.name}>
-                <Tag color={c.color} style={{ margin: 0 }}>{c.name}</Tag>
-              </Option>
-            ))}
-          </Select>
-        </Form.Item>
-
-        {/* 同時建立倉位（僅新增模式） */}
-        {!isEditMode && (
+        {!isEditMode && withPosition && (
           <>
-            <Form.Item
-              name="withPosition"
-              valuePropName="checked"
-              style={{ marginBottom: withPosition ? 16 : 0 }}
-            >
-              <Space align="center">
-                <Switch
-                  size="small"
-                  checked={withPosition}
-                  onChange={(checked) => {
-                    form.setFieldsValue({ withPosition: checked })
-                    if (checked) {
-                      setTimeout(() => priceInputRef.current?.focus(), 0)
-                    }
-                  }}
+            <div className='useBetween gap-md'>
+              <Form.Item
+                label="價格"
+                name="positionPrice"
+                className='flex-1'
+                rules={[
+                  { required: true, message: '請輸入價格' },
+                  { type: 'number', min: 0, message: '價格必須大於0' }
+                ]}
+              >
+                <InputNumber
+                  ref={priceInputRef}
+                  placeholder="請輸入價格"
+                  style={{ width: '100%', borderRadius: '4px' }}
+                  min={0}
+                  precision={2}
+                  addonBefore="$"
                 />
-                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>同時建立首筆倉位</span>
-              </Space>
-            </Form.Item>
+              </Form.Item>
 
-            {withPosition && (
-              <>
-                <div className='useBetween gap-md'>
-                  <Form.Item
-                    label="價格"
-                    name="positionPrice"
-                    className='flex-1'
-                    rules={[
-                      { required: true, message: '請輸入價格' },
-                      { type: 'number', min: 0, message: '價格必須大於0' }
-                    ]}
-                  >
-                    <InputNumber
-                      ref={priceInputRef}
-                      placeholder="請輸入價格"
-                      style={{ width: '100%', borderRadius: '4px' }}
-                      min={0}
-                      precision={2}
-                      addonBefore="$"
-                    />
-                  </Form.Item>
+              <Form.Item
+                label="數量"
+                name="positionShares"
+                className='flex-1'
+                rules={[
+                  { required: true, message: '請輸入數量' },
+                  { type: 'number', min: 1, message: '數量必須大於0' }
+                ]}
+              >
+                <InputNumber
+                  placeholder="請輸入數量"
+                  style={{ width: '100%', borderRadius: '4px' }}
+                  min={1}
+                  precision={0}
+                  addonAfter="股"
+                  onPressEnter={handleSave}
+                />
+              </Form.Item>
+            </div>
 
-                  <Form.Item
-                    label="數量"
-                    name="positionShares"
-                    className='flex-1'
-                    rules={[
-                      { required: true, message: '請輸入數量' },
-                      { type: 'number', min: 1, message: '數量必須大於0' }
-                    ]}
-                  >
-                    <InputNumber
-                      placeholder="請輸入數量"
-                      style={{ width: '100%', borderRadius: '4px' }}
-                      min={1}
-                      precision={0}
-                    />
-                  </Form.Item>
-                </div>
+            <div className='useBetween gap-md'>
+              <Form.Item
+                label={<>停損價 <span className='optional-tag'>選填</span></>}
+                name="positionStopLoss"
+                className='flex-1'
+                rules={[
+                  { type: 'number', min: 0, message: '停損價必須大於0' }
+                ]}
+              >
+                <InputNumber
+                  placeholder="觸發停損的價格"
+                  style={{ width: '100%', borderRadius: '4px' }}
+                  min={0}
+                  precision={2}
+                  addonBefore="$"
+                />
+              </Form.Item>
 
-                <div className='useBetween gap-md'>
-                  <Form.Item
-                    label="停損價"
-                    name="positionStopLoss"
-                    className='flex-1'
-                    rules={[
-                      { type: 'number', min: 0, message: '停損價必須大於0' }
-                    ]}
-                  >
-                    <InputNumber
-                      placeholder="選填"
-                      style={{ width: '100%', borderRadius: '4px' }}
-                      min={0}
-                      precision={2}
-                      addonBefore="$"
-                    />
-                  </Form.Item>
+              <Form.Item
+                label={<>備註 <span className='optional-tag'>選填</span></>}
+                name="positionNote"
+                className='flex-1'
+              >
+                <Input
+                  placeholder="例：突破整理區買進"
+                  style={{ borderRadius: '4px' }}
+                />
+              </Form.Item>
+            </div>
 
-                  <Form.Item
-                    label="備註"
-                    name="positionNote"
-                    className='flex-1'
-                  >
-                    <Input
-                      placeholder="選填"
-                      style={{ borderRadius: '4px' }}
-                    />
-                  </Form.Item>
-                </div>
+            <div className={`deposit-block ${withDeposit ? 'is-expanded' : ''}`}>
+              <Form.Item
+                name="withDeposit"
+                valuePropName="checked"
+                className='deposit-toggle'
+              >
+                <Space align="center">
+                  <Switch
+                    size="small"
+                    checked={withDeposit}
+                    onChange={(checked) => form.setFieldsValue({ withDeposit: checked })}
+                  />
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                    同步補入金
+                  </span>
+                </Space>
+              </Form.Item>
 
+              {withDeposit && (
                 <Form.Item
-                  name="withDeposit"
-                  valuePropName="checked"
-                  style={{ marginBottom: withDeposit ? 16 : 0 }}
+                  label="入金金額"
+                  name="depositAmount"
+                  rules={[
+                    { required: true, message: '請輸入入金金額' },
+                    { type: 'number', min: 1, message: '入金金額必須大於 0' },
+                  ]}
+                  extra="補歷史單時避免現金變負；預設為買入成本（股數 × 價格），可自行調整"
                 >
-                  <Space align="center">
-                    <Switch
-                      size="small"
-                      checked={withDeposit}
-                      onChange={(checked) => form.setFieldsValue({ withDeposit: checked })}
-                    />
-                    <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                      同步補入金（補歷史單時用，避免現金變負）
-                    </span>
-                  </Space>
+                  <InputNumber
+                    placeholder="入金金額"
+                    style={{ width: '100%', borderRadius: '4px' }}
+                    min={1}
+                    precision={0}
+                    addonBefore="$"
+                  />
                 </Form.Item>
-
-                {withDeposit && (
-                  <Form.Item
-                    label="入金金額"
-                    name="depositAmount"
-                    rules={[
-                      { required: true, message: '請輸入入金金額' },
-                      { type: 'number', min: 1, message: '入金金額必須大於 0' },
-                    ]}
-                    extra="預設帶入買入成本（股數 × 價格），可自行調整。日期會跟交易同一天。"
-                  >
-                    <InputNumber
-                      placeholder="入金金額"
-                      style={{ width: '100%', borderRadius: '4px' }}
-                      min={1}
-                      precision={0}
-                      addonBefore="$"
-                    />
-                  </Form.Item>
-                )}
-              </>
-            )}
+              )}
+            </div>
           </>
         )}
       </Form>

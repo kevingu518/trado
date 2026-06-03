@@ -22,14 +22,91 @@
 }
 
 /*--------------------- 新增交易表單樣式 ---------------------*/
+.add-trade-modal-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 28px; // 留空間給右上角的 X 關閉按鈕
+}
+
 .add-trade-modal {
 
+  // 內容過長時 body 內部 scroll，避免整個視窗超出
+  .ant-modal-body {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+
+  // InputNumber 帶 addon 時的圓角統一：依直系子節點的 first/last 判斷
+  // 涵蓋 addonBefore-only、addonAfter-only、兩者皆有 三種情境
   .ant-input-number-wrapper {
-    .ant-input-number-group-addon {
+    > .ant-input-number:first-child,
+    > .ant-input-number-group-addon:first-child {
       border-radius: 4px 0 0 4px !important;
     }
-    .ant-input-number {
+    > .ant-input-number:last-child,
+    > .ant-input-number-group-addon:last-child {
       border-radius: 0 4px 4px 0 !important;
+    }
+    // 中間元素（同時有 before + after 時的 input）
+    > *:not(:first-child):not(:last-child) {
+      border-radius: 0 !important;
+    }
+  }
+
+  .ant-select-selector {
+    border-radius: 4px !important;
+  }
+
+  // 表單緊湊化：較小的 label、較緊的列距
+  .ant-form-item {
+    margin-bottom: 14px;
+  }
+  .ant-form-item-label {
+    padding-bottom: 2px;
+    > label {
+      font-size: 13px;
+      height: 22px;
+      color: var(--text-secondary);
+    }
+  }
+  .ant-form-item-explain,
+  .ant-form-item-extra {
+    font-size: 12px;
+    min-height: 18px;
+    line-height: 18px;
+    margin-top: 2px;
+  }
+
+  // 選填欄位的 label 後綴
+  .optional-tag {
+    font-size: 11px;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    font-weight: normal;
+    margin-left: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  // 同步補入金分組：collapsed 時無背景（單純 toggle row），expanded 才顯示分組底色
+  .deposit-block {
+    margin-bottom: 14px;
+
+    .deposit-toggle {
+      margin-bottom: 0;
+    }
+
+    &.is-expanded {
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      padding: 10px 12px 4px;
+
+      .deposit-toggle {
+        margin-bottom: 4px;
+      }
+      .ant-form-item:last-child {
+        margin-bottom: 6px;
+      }
     }
   }
 
