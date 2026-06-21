@@ -1,10 +1,10 @@
 // src/features/trades/components/AddTradeModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Modal, Form, Input, Select, DatePicker, InputNumber, Button, Space, message, Segmented, Switch, Tag } from 'antd'
+import { Modal, Form, Input, Select, DatePicker, InputNumber, Button, Space, message, Segmented, Switch } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useStrategies } from '@/features/strategies/hooks/useStrategies'
-import { useStockCategories } from '@/features/stockCategories/hooks/useStockCategories'
+import CategoryTag from '@/features/stockCategories/components/CategoryTag'
 
 const { Option } = Select
 
@@ -13,7 +13,12 @@ const AddTradeModal = ({
   onClose,
   onSave,
   tradeId = null, // 編輯模式時傳入 tradeId
-  initialData = null // 編輯模式時傳入初始資料
+  initialData = null, // 編輯模式時傳入初始資料
+  // 族群資料由父層（交易紀錄頁）共用同一份 state 傳入，
+  // 確保建立後寫入的 symbol→族群 對應能立即反映在表格上
+  stockCategories = [],
+  symbolCategoryMap = {},
+  setSymbolCategory = () => Promise.resolve({ err: null }),
 }) => {
   const [form] = Form.useForm()
   const symbolInputRef = useRef(null)
@@ -25,13 +30,6 @@ const AddTradeModal = ({
   const positionShares = Form.useWatch('positionShares', form)
   const positionPrice = Form.useWatch('positionPrice', form)
   const symbolValue = Form.useWatch('symbol', form)
-
-  // 族群（只在 modal 開啟時拉資料）
-  const {
-    list: stockCategories,
-    mappings: symbolCategoryMap,
-    setSymbolCategory,
-  } = useStockCategories(visible)
 
   // 獲取策略列表（只獲取啟用的策略）
   const { data: strategiesData, loading: strategiesLoading } = useStrategies(
@@ -367,7 +365,7 @@ const AddTradeModal = ({
             >
               {stockCategories.map((c) => (
                 <Option key={c.id} value={c.id} label={c.name}>
-                  <Tag color={c.color} style={{ margin: 0 }}>{c.name}</Tag>
+                  <CategoryTag color={c.color} size="sm">{c.name}</CategoryTag>
                 </Option>
               ))}
             </Select>

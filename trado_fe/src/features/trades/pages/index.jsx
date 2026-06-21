@@ -1085,6 +1085,9 @@ const Transactions = () => {
           onSave={handleSaveTrade}
           tradeId={editingTrade?.id || null}
           initialData={editingTrade || null}
+          stockCategories={stockCategories}
+          symbolCategoryMap={symbolCategoryMap}
+          setSymbolCategory={setSymbolCategory}
         />
       </div>
     </div>
