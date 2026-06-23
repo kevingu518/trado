@@ -25,6 +25,10 @@ export function useShortcut(id, callback, options = {}) {
       enabled: enabledOverride && isShortcutEnabled(entry.scope),
       enableOnFormTags: false,
       preventDefault: true,
+      // useKey:true 在 react-hotkeys-hook v5 有個快速通道：單鍵只比對 e.key，
+      // 會跳過 modifier 檢查，導致 Cmd+R / Cmd+S 等也命中單鍵快捷鍵並被 preventDefault
+      // 擋掉（瀏覽器重整失效）。registry 內所有快捷鍵都不帶 Cmd/Ctrl，故一律忽略這類事件。
+      ignoreEventWhen: (e) => e.metaKey || e.ctrlKey,
       // 使用 e.key（實際輸入字元）做匹配，否則符號鍵如 '/'、'?' 會因為被
       // 預設的 e.code 路徑（'Slash'）正規化掉而比對失敗而無法觸發
       useKey: true,
