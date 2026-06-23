@@ -17,6 +17,7 @@ router.delete('/:id', asyncHandler(stockCategoryController.deleteCategory));
 
 // Allocation analytics
 router.get('/allocation', asyncHandler(stockCategoryController.getAllocation));
+router.get('/allocation-flow', asyncHandler(stockCategoryController.getAllocationFlow));
 
 // Symbol ↔ Category mappings
 router.get('/mappings', asyncHandler(stockCategoryController.listMappings));

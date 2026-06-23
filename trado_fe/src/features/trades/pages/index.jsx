@@ -21,6 +21,7 @@ import AddTradeModal from '../components/AddTradeModal'
 import AddPositionModal from '../components/AddPositionModal'
 import TradeDrawer from '../components/TradeDrawer'
 import DailyPositionsView from '../components/DailyPositionsView'
+import CategoryFlowView from '@/features/stockCategories/components/CategoryFlowView'
 
 const { RangePicker } = DatePicker;
 
@@ -843,6 +844,7 @@ const Transactions = () => {
               options={[
                 { label: '交易記錄', value: 'trades' },
                 { label: '每日進出', value: 'daily' },
+                { label: '族群流向', value: 'flow' },
               ]}
             />
             {/* {viewMode === 'trades' && (
@@ -862,6 +864,7 @@ const Transactions = () => {
           )}
         </div>
         {/* filter */}
+        {viewMode !== 'flow' && (
         <div className='useBetween my-sm py-sm'>
           <div className="useStart gap-sm">
             <RangePicker
@@ -980,6 +983,7 @@ const Transactions = () => {
             </div>
           )}
         </div>
+        )}
         {viewMode === 'trades' ? (
           <>
             {/* table */}
@@ -1043,7 +1047,7 @@ const Transactions = () => {
               />
             </div>
           </>
-        ) : (
+        ) : viewMode === 'daily' ? (
           <DailyPositionsView
             dateRange={dateRange}
             symbolFilter={symbolFilter}
@@ -1057,6 +1061,10 @@ const Transactions = () => {
               setDrawerVisible(true)
             }}
           />
+        ) : (
+          <PerfectScrollbar className='container flow-panel bg-white'>
+            <CategoryFlowView />
+          </PerfectScrollbar>
         )}
 
         <TradeDrawer

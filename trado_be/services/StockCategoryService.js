@@ -407,6 +407,194 @@ class StockCategoryService {
     };
   }
 
+  /**
+   * 族群持倉佔比「流向」：比較「最新持倉」與「上一個有交易的日期」兩個時間點的
+   * 各族群成本佔比。
+   *
+   * 計價基準：成本（股數 × 平均成本）。
+   *  - current（最新持倉）：直接讀 open trades 的 totalShares × avgPrice，與「族群配置」
+   *    頁同源，確保即使某些部位沒有 PositionAdjustment 明細也能顯示。
+   *  - previous（上一交易日）：重播 PositionAdjustment（與 TradeService.calculateTradeMetrics
+   *    同一套平均成本演算法），取該日結束時的持倉成本。沒有明細的部位無從回推歷史，
+   *    只會出現在 current。
+   * 佔比分母：該快照「總持倉成本」（不含現金）。無 mapping 的 symbol 歸「未分類」。
+   *
+   * @returns {Promise<{
+   *   previous: { date: string|null, totalCost: number, categories: [...], unclassified: {...} } | null,
+   *   current:  { date: string|null, totalCost: number, categories: [...], unclassified: {...} },
+   * }>}
+   */
+  async getAllocationFlow(userId) {
+    const [categories, mappings, openTrades, adjustments] = await Promise.all([
+      prisma.stockCategory.findMany({
+        where: { userId },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      }),
+      prisma.stockCategoryMap.findMany({ where: { userId } }),
+      prisma.trade.findMany({
+        where: { userId, status: 'open' },
+        select: { symbol: true, totalShares: true, avgPrice: true },
+      }),
+      prisma.positionAdjustment.findMany({
+        where: { deletedAt: null, trade: { userId } },
+        select: {
+          action: true,
+          shares: true,
+          price: true,
+          fee: true,
+          timestamp: true,
+          trade: { select: { id: true, symbol: true } },
+        },
+        orderBy: { timestamp: 'asc' },
+      }),
+    ]);
+
+    // 以 UTC 日期字串歸日（與 DailyPositionService 一致）
+    const toDateKey = (d) => d.toISOString().slice(0, 10);
+    const endOf = (dateKey) => new Date(dateKey + 'T23:59:59.999Z');
+
+    // current 持倉成本：以 open trades 的 totalShares × avgPrice（與族群配置同源）
+    const currentSymbolCost = new Map();
+    for (const t of openTrades) {
+      const shares = t.totalShares || 0;
+      const avg = t.avgPrice != null ? Number(t.avgPrice) : 0;
+      if (shares > 0 && avg > 0) {
+        currentSymbolCost.set(t.symbol, (currentSymbolCost.get(t.symbol) || 0) + shares * avg);
+      }
+    }
+
+    // previous：依交易明細日期回推上一交易日的持倉
+    const dateKeys = [...new Set(adjustments.map((a) => toDateKey(a.timestamp)))].sort();
+    const d1 = dateKeys.length ? dateKeys[dateKeys.length - 1] : null;
+    const d0 = dateKeys.length >= 2 ? dateKeys[dateKeys.length - 2] : null;
+
+    // 依 tradeId 分組（adjustments 已按 timestamp 升序）
+    const byTrade = new Map(); // tradeId -> { symbol, adjs: [] }
+    for (const adj of adjustments) {
+      const tid = adj.trade.id;
+      if (!byTrade.has(tid)) byTrade.set(tid, { symbol: adj.trade.symbol, adjs: [] });
+      byTrade.get(tid).adjs.push(adj);
+    }
+
+    // 重播至 cutoff（含），回傳 symbol -> 持倉成本
+    const snapshotCostBySymbol = (cutoff) => {
+      const symbolCost = new Map();
+      for (const { symbol, adjs } of byTrade.values()) {
+        let shares = 0;
+        let cost = 0;
+        for (const adj of adjs) {
+          if (cutoff && adj.timestamp > cutoff) break;
+          const s = adj.shares;
+          const price = parseFloat(adj.price);
+          const fee = adj.fee || 0;
+          if (adj.action === 'buy') {
+            shares += s;
+            cost += s * price + fee;
+          } else if (adj.action === 'sell') {
+            if (shares > 0) {
+              const avgCostPerShare = cost / shares;
+              const sell = Math.min(s, shares);
+              shares -= sell;
+              cost -= sell * avgCostPerShare + fee;
+            }
+          }
+        }
+        if (shares > 0 && cost > 0) {
+          symbolCost.set(symbol, (symbolCost.get(symbol) || 0) + cost);
+        }
+      }
+      return symbolCost;
+    };
+
+    const mappingBySymbol = new Map(mappings.map((m) => [m.symbol, m.categoryId]));
+    const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+    // 把 symbol->cost 分桶成族群快照
+    const buildSnapshot = (dateKey, symbolCost) => {
+      const byCategory = new Map(); // categoryId -> cost
+      let unclassifiedCost = 0;
+      let totalCost = 0;
+      for (const [symbol, cost] of symbolCost) {
+        const rounded = Math.round(cost);
+        totalCost += rounded;
+        const catId = mappingBySymbol.get(symbol);
+        if (catId && categoryById.has(catId)) {
+          byCategory.set(catId, (byCategory.get(catId) || 0) + rounded);
+        } else {
+          unclassifiedCost += rounded;
+        }
+      }
+      const denom = totalCost > 0 ? totalCost : 1;
+      const cats = [];
+      for (const c of categories) {
+        const cost = byCategory.get(c.id) || 0;
+        if (cost <= 0) continue;
+        cats.push({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          isStandby: c.isStandby,
+          cost,
+          ratio: cost / denom,
+        });
+      }
+      return {
+        date: dateKey,
+        totalCost,
+        categories: cats,
+        unclassified: { cost: unclassifiedCost, ratio: unclassifiedCost / denom },
+      };
+    };
+
+    const current = buildSnapshot(d1, currentSymbolCost);
+    const previous = d0 ? buildSnapshot(d0, snapshotCostBySymbol(endOf(d0))) : null;
+
+    // rotation：最新交易日 D1 當天，依族群分桶的賣出 / 買進「成交額」（shares × price），
+    // 供前端畫「賣出族群 → 資金池 → 買進族群」的資金輪動 Sankey。
+    const buildRotation = (dateKey) => {
+      if (!dateKey) return null;
+      const sellByCat = new Map();
+      const buyByCat = new Map();
+      let sellUncl = 0;
+      let buyUncl = 0;
+      for (const adj of adjustments) {
+        if (toDateKey(adj.timestamp) !== dateKey) continue;
+        const amount = Math.round(adj.shares * parseFloat(adj.price));
+        if (amount <= 0) continue;
+        const catId = mappingBySymbol.get(adj.trade.symbol);
+        const known = catId && categoryById.has(catId);
+        if (adj.action === 'buy') {
+          if (known) buyByCat.set(catId, (buyByCat.get(catId) || 0) + amount);
+          else buyUncl += amount;
+        } else if (adj.action === 'sell') {
+          if (known) sellByCat.set(catId, (sellByCat.get(catId) || 0) + amount);
+          else sellUncl += amount;
+        }
+      }
+      const toList = (m, uncl) => {
+        const arr = [];
+        for (const c of categories) {
+          const a = m.get(c.id) || 0;
+          if (a > 0) arr.push({ id: c.id, name: c.name, color: c.color, amount: a });
+        }
+        if (uncl > 0) arr.push({ id: null, name: '未分類', color: null, amount: uncl });
+        return arr;
+      };
+      return { date: dateKey, sells: toList(sellByCat, sellUncl), buys: toList(buyByCat, buyUncl) };
+    };
+    // 由新到舊找「最近一個有實際買賣的交易日」，避免最新日剛好無輪動時畫面空白
+    let rotation = null;
+    for (let i = dateKeys.length - 1; i >= 0; i -= 1) {
+      const rot = buildRotation(dateKeys[i]);
+      if (rot && (rot.sells.length > 0 || rot.buys.length > 0)) {
+        rotation = rot;
+        break;
+      }
+    }
+
+    return { previous, current, rotation };
+  }
+
   async bulkSetSymbolCategory(userId, symbols, categoryId) {
     if (!Array.isArray(symbols) || symbols.length === 0) {
       throw new ValidationError('symbols must be a non-empty array');

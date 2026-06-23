@@ -6,6 +6,7 @@ import {
   updateStockCategoryApi,
   deleteStockCategoryApi,
   getStockCategoryAllocationApi,
+  getStockCategoryAllocationFlowApi,
   getStockCategoryMappingsApi,
   setSymbolCategoryApi,
   bulkSetSymbolCategoryApi,
@@ -89,6 +90,11 @@ export const stockCategoriesService = {
 
   async fetchAllocation() {
     const res = await getStockCategoryAllocationApi();
+    return res?.data ?? res;
+  },
+
+  async fetchAllocationFlow() {
+    const res = await getStockCategoryAllocationFlowApi();
     return res?.data ?? res;
   },
 

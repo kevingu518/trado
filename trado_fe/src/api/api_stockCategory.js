@@ -16,6 +16,8 @@ export const deleteStockCategoryApi = (id) => request.delete(`/stock-categories/
 
 // Allocation analytics
 export const getStockCategoryAllocationApi = () => request.get('/stock-categories/allocation');
+export const getStockCategoryAllocationFlowApi = () =>
+  request.get('/stock-categories/allocation-flow');
 
 // Symbol ↔ Category mappings
 export const getStockCategoryMappingsApi = () => request.get('/stock-categories/mappings');

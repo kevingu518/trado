@@ -45,6 +45,13 @@
     }
   }
   
+  // 族群流向：沒有 filter / statistic 列，改為從標題列下方一路填滿到底
+  .container.flow-panel {
+    height: calc(100% - 52px);
+    margin-top: 12px;
+    border-radius: 4px;
+  }
+
   .container{
     height: calc(100% - 120px);
     border: 1px solid var(--border-color);

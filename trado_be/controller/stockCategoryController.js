@@ -47,6 +47,12 @@ class StockCategoryController {
     res.json({ success: true, data });
   };
 
+  getAllocationFlow = async (req, res) => {
+    const userId = req.user.id;
+    const data = await stockCategoryService.getAllocationFlow(userId);
+    res.json({ success: true, data });
+  };
+
   listMappings = async (req, res) => {
     const userId = req.user.id;
     const mappings = await stockCategoryService.listMappings(userId);
