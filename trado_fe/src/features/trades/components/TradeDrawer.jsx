@@ -476,7 +476,6 @@ const TradeDrawer = ({
             <Card
               title="倉位記錄"
               size="small"
-              style={{ marginBottom: 16 }}
               extra={
                 <Button
                   type="default"
@@ -489,7 +488,7 @@ const TradeDrawer = ({
                 </Button>
               }
             >
-              <div className='mb-md'>
+              <div>
                 <Form form={form} component={false}>
                   <Table
                     components={{

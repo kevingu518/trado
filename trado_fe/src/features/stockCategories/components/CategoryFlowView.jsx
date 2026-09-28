@@ -60,6 +60,33 @@ const CategoryFlowView = () => {
   const prevPie = useMemo(() => toPieData(previous), [toPieData, previous]);
   const currPie = useMemo(() => toPieData(current), [toPieData, current]);
 
+  // 成本 vs 市值：最新持倉各族群的成本佔比、市值佔比、浮盈虧
+  // 浮盈虧只以「有報價部位」的成本（valuedCost）為基準，與後端一致
+  const valueRows = useMemo(() => {
+    if (!current) return [];
+    const toRow = (c, key, name, palette, color) => {
+      const valuedCost = c.valuedCost || 0;
+      const marketValue = c.marketValue || 0;
+      const pnl = marketValue - valuedCost;
+      return {
+        key, name, palette, color,
+        costRatio: c.ratio || 0,
+        marketRatio: c.marketRatio || 0,
+        valuedCost, marketValue, pnl,
+        pnlRatio: valuedCost > 0 ? pnl / valuedCost : null,
+      };
+    };
+    const arr = (current.categories || [])
+      .filter((c) => c.cost > 0)
+      .map((c) => toRow(c, c.id, c.name, c.color, colorOf(c)));
+    const u = current.unclassified;
+    if (u && u.cost > 0) {
+      arr.push(toRow(u, UNCLASSIFIED_KEY, '未分類', null, UNCLASSIFIED_COLOR));
+    }
+    return arr.sort((a, b) => b.marketValue - a.marketValue || b.costRatio - a.costRatio);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, getHex]);
+
   // 兩快照合併 → 差異列
   const rows = useMemo(() => {
     const map = new Map();
@@ -265,6 +292,74 @@ const CategoryFlowView = () => {
   const topUp = previous ? rows.reduce((a, r) => (!a || r.deltaRatio > a.deltaRatio ? r : a), null) : null;
   const topDown = previous ? rows.reduce((a, r) => (!a || r.deltaRatio < a.deltaRatio ? r : a), null) : null;
 
+  // 成本 vs 市值摘要
+  const totalMarketValue = current?.totalMarketValue ?? 0;
+  const totalValuedCost = current?.totalValuedCost ?? 0;
+  const totalPnl = totalMarketValue - totalValuedCost;
+  const totalPnlRatio = totalValuedCost > 0 ? totalPnl / totalValuedCost : null;
+  // 有報價部位 < 全部成本 → 有部位拿不到報價，市值統計不完整
+  const unpricedCost = totalCurr - totalValuedCost;
+  const pnlRows = valueRows.filter((r) => r.pnlRatio !== null);
+  const bestPnl = pnlRows.reduce((a, r) => (!a || r.pnlRatio > a.pnlRatio ? r : a), null);
+  const worstPnl = pnlRows.reduce((a, r) => (!a || r.pnlRatio < a.pnlRatio ? r : a), null);
+
+  const valueColumns = [
+    {
+      title: '族群',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name, r) =>
+        r.key === UNCLASSIFIED_KEY
+          ? <Tag style={{ borderRadius: 4 }}>未分類</Tag>
+          : <CategoryTag color={r.palette} size="sm">{name}</CategoryTag>,
+    },
+    {
+      title: '成本佔比',
+      dataIndex: 'costRatio',
+      key: 'costRatio',
+      width: 110,
+      align: 'right',
+      render: (r) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtPct(r)}</span>,
+    },
+    {
+      title: '市值佔比',
+      dataIndex: 'marketRatio',
+      key: 'marketRatio',
+      width: 110,
+      align: 'right',
+      render: (r, row) => (
+        <span style={{ fontVariantNumeric: 'tabular-nums', color: row.marketValue > 0 ? 'inherit' : '#bbb' }}>
+          {row.marketValue > 0 ? fmtPct(r) : '—'}
+        </span>
+      ),
+    },
+    {
+      title: '浮盈虧',
+      dataIndex: 'pnlRatio',
+      key: 'pnlRatio',
+      width: 150,
+      align: 'right',
+      render: (pr, row) => {
+        if (pr === null) return <span style={{ color: '#bbb' }}>—</span>;
+        const up = pr > 0.00005;
+        const down = pr < -0.00005;
+        const color = up ? 'var(--color-up)' : down ? 'var(--color-down)' : '#999';
+        return (
+          <div style={{ fontVariantNumeric: 'tabular-nums', color, lineHeight: 1.3 }}>
+            <div>
+              {up && <ArrowUpOutlined style={{ fontSize: 11, marginRight: 2 }} />}
+              {down && <ArrowDownOutlined style={{ fontSize: 11, marginRight: 2 }} />}
+              {up ? '+' : ''}{fmtPct(pr)}
+            </div>
+            <div style={{ fontSize: 11, color: '#bbb' }}>
+              {row.pnl >= 0 ? '+' : '-'}${fmtMoney(Math.abs(row.pnl))}
+            </div>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 12, height: '100%', minHeight: 0, overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -275,6 +370,8 @@ const CategoryFlowView = () => {
             ) : (
               <>尚無買賣明細，顯示目前<b>持倉佔比</b>（依持倉成本）</>
             )
+          ) : mode === 'value' ? (
+            <>最新持倉 <b>{dateLabel(current?.date)}</b> 各族群<b>成本</b>與<b>市值</b>佔比、浮盈虧（以最新收盤價計）</>
           ) : (
             <>以<b>持倉成本</b>計算各族群佔比 ·{' '}
               上次交易日 <b>{dateLabel(previous?.date)}</b> → 最新 <b>{dateLabel(current?.date)}</b></>
@@ -286,6 +383,7 @@ const CategoryFlowView = () => {
           onChange={setMode}
           options={[
             { label: '圓餅對照', value: 'pie' },
+            { label: '成本/市值', value: 'value' },
             { label: '佔比流向', value: 'snapshot' },
             { label: '資金輪動', value: 'rotation' },
           ]}
@@ -376,6 +474,64 @@ const CategoryFlowView = () => {
               tableLayout="auto"
               sticky
             />
+          </Card>
+        </div>
+      ) : mode === 'value' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.6fr)', gap: 12, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
+          {/* 左：持倉損益摘要 */}
+          <Card
+            size="small"
+            title="持倉損益摘要"
+            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+            styles={{ body: { padding: 16, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } }}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <FlowStat label="總持倉成本" value={`$${fmtMoney(totalCurr)}`} />
+              <FlowStat
+                label="總市值"
+                value={`$${fmtMoney(totalMarketValue)}`}
+                sub={unpricedCost > 0 ? `${fmtMoney(unpricedCost)} 成本無報價，未計入` : null}
+              />
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <FlowStat
+                label="浮盈虧"
+                value={totalPnlRatio === null
+                  ? '—'
+                  : `${totalPnl >= 0 ? '+' : '-'}$${fmtMoney(Math.abs(totalPnl))}`}
+                sub={totalPnlRatio === null ? '尚無報價' : `報酬率 ${totalPnl >= 0 ? '+' : ''}${fmtPct(totalPnlRatio)}（以有報價部位成本計）`}
+                valueColor={totalPnl > 0 ? 'var(--color-up)' : totalPnl < 0 ? 'var(--color-down)' : 'inherit'}
+              />
+            </div>
+            <div style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, color: '#888' }}>
+              {bestPnl && (
+                <span>最賺族群：<b style={{ color: 'var(--color-up)' }}>{bestPnl.name}</b> {bestPnl.pnlRatio >= 0 ? '+' : ''}{fmtPct(bestPnl.pnlRatio)}</span>
+              )}
+              {worstPnl && worstPnl.key !== bestPnl?.key && (
+                <span>最賠族群：<b style={{ color: 'var(--color-down)' }}>{worstPnl.name}</b> {worstPnl.pnlRatio >= 0 ? '+' : ''}{fmtPct(worstPnl.pnlRatio)}</span>
+              )}
+            </div>
+          </Card>
+          {/* 右：成本佔比 / 市值佔比 / 浮盈虧 */}
+          <Card
+            size="small"
+            title="各族群成本 vs 市值"
+            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+            styles={{ body: { padding: 0, flex: 1, minHeight: 0, overflow: 'auto' } }}
+          >
+            {valueRows.length > 0 ? (
+              <Table
+                rowKey="key"
+                size="small"
+                dataSource={valueRows}
+                columns={valueColumns}
+                pagination={false}
+                tableLayout="auto"
+                sticky
+              />
+            ) : (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="無持倉資料" style={{ padding: '60px 0' }} />
+            )}
           </Card>
         </div>
       ) : mode === 'snapshot' ? (
