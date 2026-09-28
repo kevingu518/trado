@@ -1,12 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, Card } from 'antd';
-import { UserOutlined, DollarOutlined, SettingOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { UserOutlined, DollarOutlined, SettingOutlined, ThunderboltOutlined, RobotOutlined } from '@ant-design/icons';
 import ProfileSettings from '../components/ProfileSettings';
 import BalanceManagement from '../components/BalanceManagement';
 import FeeSettings from '../components/FeeSettings';
 import ShortcutSettings from '../components/ShortcutSettings';
+import AISettings from '@/features/aiAnalysis/components/AISettings';
+
+const TAB_KEY_MAP = { profile: '1', balance: '2', trade: '3', shortcut: '4', ai: '5' };
 
 const Settings = () => {
+  const [searchParams] = useSearchParams();
+  const [activeKey, setActiveKey] = useState(TAB_KEY_MAP[searchParams.get('tab')] || '1');
+
   const items = [
     {
       key: '1',
@@ -48,12 +55,22 @@ const Settings = () => {
       ),
       children: <ShortcutSettings />,
     },
+    {
+      key: '5',
+      label: (
+        <span className='flex items-center gap-sm'>
+          <RobotOutlined />
+          AI 設定
+        </span>
+      ),
+      children: <AISettings />,
+    },
   ];
 
   return (
-    <div className='p-md'>
+    <div className='p-md h-full'>
       <Card className='rounded-base full-height'>
-        <Tabs defaultActiveKey="1" items={items} />
+        <Tabs activeKey={activeKey} onChange={setActiveKey} items={items} />
       </Card>
     </div>
   );

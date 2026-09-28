@@ -55,6 +55,9 @@ model User {
   refreshToken   String?   @db.Text
   brokerFeeDiscount Decimal? @db.Decimal(3, 2)  // 券商手續費折扣（例：0.60 = 六折，null = 不折扣）
   cashAdjustment Int      @default(0)          // 現金補正值（設定現金餘額時由系統計算）
+  aiProvider     String?   @db.VarChar(20)     // AI 供應商：anthropic | deepseek | openai | grok | gemini
+  aiModel        String?   @db.VarChar(60)     // AI 模型名稱（覆蓋供應商預設）
+  aiApiKey       String?   @db.Text            // AI API key（AES-256-GCM 加密儲存，格式 iv:tag:cipher）
   createdAt      DateTime  @default(now()) @db.Timestamp(6)
   updatedAt      DateTime  @updatedAt @db.Timestamp(6)
   trades         Trade[]

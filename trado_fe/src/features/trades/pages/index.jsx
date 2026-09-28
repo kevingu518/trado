@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import dayjs from 'dayjs'
 
-import { Table, Tag, Button, Space, message, Card, Row, Col, Tooltip, DatePicker, Select, Input, Pagination, Statistic, Dropdown, Segmented } from 'antd'
+import { Table, Tag, Button, Space, message, Card, Row, Col, Tooltip, DatePicker, Select, Input, Pagination, Statistic, Dropdown, Segmented, Drawer } from 'antd'
 
 const { Option } = Select;
-import { EllipsisOutlined,EditOutlined, EyeOutlined, PlusOutlined, CheckOutlined, CloseOutlined, MinusOutlined, FileTextOutlined, ClockCircleOutlined, DollarOutlined, ClearOutlined, ToolOutlined} from '@ant-design/icons'
+import { EllipsisOutlined,EditOutlined, EyeOutlined, PlusOutlined, CheckOutlined, CloseOutlined, MinusOutlined, FileTextOutlined, ClockCircleOutlined, DollarOutlined, ClearOutlined, ToolOutlined, RobotOutlined} from '@ant-design/icons'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import { to } from 'await-to-js'
@@ -22,6 +22,9 @@ import AddPositionModal from '../components/AddPositionModal'
 import TradeDrawer from '../components/TradeDrawer'
 import DailyPositionsView from '../components/DailyPositionsView'
 import CategoryFlowView from '@/features/stockCategories/components/CategoryFlowView'
+import AnalysisPanel from '@/features/aiAnalysis/components/AnalysisPanel'
+import { aiAnalysisAPI } from '@/features/aiAnalysis/api'
+import { useNavigate } from 'react-router-dom'
 
 const { RangePicker } = DatePicker;
 
@@ -49,6 +52,8 @@ const Transactions = () => {
   const [drawerVisible, setDrawerVisible] = useState(false)
   const [addPositionModalVisible, setAddPositionModalVisible] = useState(false)
   const [addTradeModalVisible, setAddTradeModalVisible] = useState(false)
+  const [aiDrawerVisible, setAiDrawerVisible] = useState(false)
+  const navigate = useNavigate()
   const [editingTrade, setEditingTrade] = useState(null) // 正在編輯的交易資料
   const [selectedRecord, setSelectedRecord] = useState(null)
   // 鍵盤導覽：被「框選」的列 key（null 表示尚未選中任何列）
@@ -218,7 +223,7 @@ const Transactions = () => {
   // 鍵盤導覽（↑/↓ 移動框選、Enter 開啟詳情）：
   // 放在 displayData 計算之後，避免 deps 在 TDZ 中讀到 displayData
   // 有 drawer / modal 開啟時禁用，避免和裡面的鍵盤行為打架
-  const overlayOpen = drawerVisible || addPositionModalVisible || addTradeModalVisible
+  const overlayOpen = drawerVisible || addPositionModalVisible || addTradeModalVisible || aiDrawerVisible
   const tradesNavEnabled = !overlayOpen && viewMode === 'trades'
   useShortcut('trades-row-up', () => {
     setFocusedRowKey((prev) => {
@@ -261,6 +266,17 @@ const Transactions = () => {
   // 處理新增交易 - 彈出新增 trade modal
   const handleAdd = () => {
     setAddTradeModalVisible(true)
+  }
+
+  // 開啟 AI 分析：未設定金鑰時導向設定頁（AI 設定分頁）
+  const handleOpenAI = async () => {
+    const [err, s] = await to(aiAnalysisAPI.getSettings())
+    if (!err && s && !s.hasKey) {
+      message.info('請先設定 AI API key')
+      navigate('/settings?tab=ai')
+      return
+    }
+    setAiDrawerVisible(true)
   }
 
   // 處理新增 trade（可選同時建立倉位、可選同步補入金）
@@ -852,15 +868,25 @@ const Transactions = () => {
             )} */}
           </div>
           {viewMode === 'trades' && (
-            <Button
-              type="primary"
-              className='rounded-sm px-lg'
-              icon={<PlusOutlined />}
-              onClick={handleAdd}
-              size="middle"
-            >
-              開單
-            </Button>
+            <Space>
+              <Button
+                className='rounded-sm'
+                icon={<RobotOutlined />}
+                onClick={handleOpenAI}
+                size="middle"
+              >
+                AI 分析
+              </Button>
+              <Button
+                type="primary"
+                className='rounded-sm px-lg'
+                icon={<PlusOutlined />}
+                onClick={handleAdd}
+                size="middle"
+              >
+                開單
+              </Button>
+            </Space>
           )}
         </div>
         {/* filter */}
@@ -1097,6 +1123,17 @@ const Transactions = () => {
           symbolCategoryMap={symbolCategoryMap}
           setSymbolCategory={setSymbolCategory}
         />
+
+        <Drawer
+          title={<span className='font-serif'>AI 交易分析</span>}
+          width={560}
+          open={aiDrawerVisible}
+          onClose={() => setAiDrawerVisible(false)}
+          destroyOnClose
+          getContainer={false}
+        >
+          <AnalysisPanel />
+        </Drawer>
       </div>
     </div>
   )
