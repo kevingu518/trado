@@ -5,6 +5,7 @@ import { Column, Line, Scatter } from '@ant-design/plots'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { useDashboard, fmtMoney, fmtSign, fmtPct } from '../hooks/useDashboard'
 import Sparkline from '../components/Sparkline'
+import AlertSummaryStrip from '../../risk/components/AlertSummaryStrip'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 
 const SectionTitle = ({ label }) => (
@@ -108,6 +109,7 @@ const Dashboard = () => {
             ]}
           />
         </div>
+        <AlertSummaryStrip />
         <div className="dashboard-main-row">
 
           {/* ══════ 左側：帳戶狀態（即時快照）══════ */}

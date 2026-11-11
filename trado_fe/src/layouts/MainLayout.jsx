@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, Tooltip, Button, Avatar, Popover } from 'antd';
-import { 
-  BarChartOutlined, 
+import { Menu, Tooltip, Button, Avatar, Popover, Badge } from 'antd';
+import {
+  BarChartOutlined,
   ProfileOutlined,
-  DashboardOutlined, 
+  DashboardOutlined,
   SettingOutlined,
   UserOutlined,
   LineChartOutlined,
   ContainerOutlined,
   HighlightOutlined,
   TagsOutlined,
+  AlertOutlined,
 } from '@ant-design/icons';
 import { FaRegUser } from "react-icons/fa";
 import { logout } from '../api/api_user';
@@ -22,13 +23,24 @@ import { useUserInfo } from '../hooks/useUserInfo';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import { ShortcutListPopover } from '@/shortcuts';
+import { RiskAlertsProvider, useRiskAlerts } from '../features/risk/contexts/RiskAlertsContext';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 
-const items = [
+// 側欄項目需要未讀警示數，所以從常數改成函式，由元件內依狀態產生
+const buildMenuItems = (unackedCount) => [
   {
     key: '2',
     icon: <DashboardOutlined />,
     label: '儀表板',
+  },
+  {
+    key: '9',
+    icon: (
+      <Badge count={unackedCount} size="small" offset={[6, -2]} overflowCount={99}>
+        <AlertOutlined />
+      </Badge>
+    ),
+    label: '風險',
   },
   {
     key: '8',
@@ -65,6 +77,7 @@ const pathToKeyMap = {
   '/stock-categories': '7',
   '/settings': '4',
   '/analysis': '8',
+  '/risk': '9',
 };
 
 // 選單 key 到路由的映射
@@ -75,12 +88,16 @@ const keyToPathMap = {
   '7': '/stock-categories',
   '4': '/settings',
   '8': '/analysis',
+  '9': '/risk',
 };
 
-const MainLayout = () => {
+const MainLayoutInner = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+
+  const { unackedCount } = useRiskAlerts();
+  const items = useMemo(() => buildMenuItems(unackedCount), [unackedCount]);
   
   // 根據當前路徑設置選中的 key
   const getSelectedKeyFromPath = (pathname) => {
@@ -215,5 +232,12 @@ const MainLayout = () => {
     </div>
   )
 }
+
+// 警示資料由側欄紅點、儀表板摘要條、風險中心頁共用，統一在這裡載入
+const MainLayout = () => (
+  <RiskAlertsProvider>
+    <MainLayoutInner />
+  </RiskAlertsProvider>
+);
 
 export default MainLayout

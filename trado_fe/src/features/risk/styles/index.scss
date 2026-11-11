@@ -1,0 +1,244 @@
+@import '../../../styles/variables';
+
+// ── 風險中心頁 ────────────────────────────────────
+// 版面比照交易紀錄頁：12px 頁面留白、4px 圓角、白底面板 + 1px 邊框
+.RiskCenter {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+// 標題列 Segmented：跟交易紀錄的 trades-view-segmented 同款
+.RiskCenter .risk-segmented.ant-segmented {
+  border-radius: 4px;
+  padding: 2px;
+  background-color: rgba(0, 0, 0, 0.03);
+
+  .ant-segmented-item {
+    border-radius: 3px;
+    min-height: 0;
+    transition: background-color 0.15s ease;
+
+    &-label {
+      min-height: 0;
+      padding: 4px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    &-selected {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+  }
+}
+
+// ── 摘要數字：單一白色長條，對齊交易紀錄底部的統計列 ──
+.risk-kpi-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 10px 0;
+}
+
+.risk-kpi {
+  flex: 1 1 120px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 16px;
+  border-left: 1px solid var(--border-color);
+
+  &:first-child {
+    border-left: none;
+  }
+}
+
+.risk-kpi-label {
+  font-size: 12px;
+}
+
+.risk-kpi-value {
+  font-size: 20px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+// ── 主區塊：今日警示（左）＋ 曝險總覽（右）並排 ──
+.risk-main-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.risk-main-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.risk-main-right {
+  flex: 0 0 320px;
+}
+
+// 窄螢幕疊起來，不要讓表格被擠到只能橫向捲動
+@media (max-width: 1200px) {
+  .risk-main-row {
+    flex-direction: column;
+  }
+
+  .risk-main-right {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
+
+// ── 白色面板（警示表格 / 曝險卡）───────────────
+.risk-panel {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+
+  .ant-table-wrapper {
+    border-radius: 0 0 4px 4px;
+  }
+}
+
+.risk-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+// ── 表格細節 ──────────────────────────────────────
+.risk-symbol {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+
+  .ant-tag {
+    margin-inline-end: 0;
+  }
+}
+
+.risk-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.25;
+
+  .text-hint {
+    font-size: 11px;
+  }
+}
+
+.risk-th-help {
+  border-bottom: 1px dashed var(--text-secondary);
+  cursor: help;
+}
+
+.risk-row-acked {
+  opacity: 0.5;
+}
+
+.risk-row-clickable {
+  cursor: pointer;
+}
+
+// 每列重複的操作按鈕：預設隱藏，hover 或鍵盤聚焦才淡入
+.risk-row-actions {
+  opacity: 0;
+  transition: opacity 0.2s;
+
+  .ant-table-row:hover &,
+  .ant-table-row:focus-within & {
+    opacity: 1;
+  }
+}
+
+.risk-coming-soon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 20px 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+// ── 儀表板摘要條 ──────────────────────────────────
+.risk-alert-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    border-color: var(--color-down);
+    box-shadow: 0 1px 4px var(--shadow);
+  }
+
+  .ant-tag {
+    margin-inline-end: 0;
+  }
+
+  &-icon {
+    color: var(--color-down);
+  }
+
+  &-title {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &-date {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  &-more {
+    margin-left: auto;
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
+
+// Dashboard 的 Spin 容器是 flex column；摘要條不應被壓縮，並與主內容留白
+.Dashboard .risk-alert-strip {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}

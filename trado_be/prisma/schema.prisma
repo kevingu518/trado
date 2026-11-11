@@ -68,6 +68,7 @@ model User {
   stockCategoryMaps   StockCategoryMap[]
   importBatches       ImportBatch[]
   importMappings      ImportMapping[]
+  riskAlertAcks       RiskAlertAck[]
 
   @@index([googleId])
   @@index([email])
@@ -114,6 +115,7 @@ model Trade {
   strategies          TradeStrategy[]
   strategyId          String?              @db.VarChar(36)
   strategy            Strategy?            @relation(fields: [strategyId], references: [id], onDelete: SetNull)
+  riskAlertAcks       RiskAlertAck[]
 
   @@index([userId, symbol, status])
 }
@@ -361,6 +363,25 @@ model ImportBatch {
   accountTransactions AccountTransaction[]
 
   @@index([userId, createdAt])
+}
+
+// 停損警示的「已讀」紀錄
+//
+// 警示是每天重新算的：同一個 priceDate 內使用者確認過就不再吵，
+// 但下一個交易日收盤後（priceDate 變了）要重新提醒——停損沒處理，
+// 隔天開盤還是同一個風險。所以唯一鍵刻意包含 priceDate。
+model RiskAlertAck {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  userId    String   @db.VarChar(36)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tradeId   String   @db.VarChar(36)
+  trade     Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  alertType String   @db.VarChar(20)   // breach | near | no_stop | invalid_stop | no_price
+  priceDate DateTime @db.Date          // 這次警示所依據的收盤價日期
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+
+  @@unique([userId, tradeId, alertType, priceDate])
+  @@index([userId, priceDate])
 }
 
 // 欄位對應設定：同一來源下次一鍵套用

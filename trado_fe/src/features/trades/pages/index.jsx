@@ -24,7 +24,7 @@ import DailyPositionsView from '../components/DailyPositionsView'
 import AnalysisPanel from '@/features/aiAnalysis/components/AnalysisPanel'
 import ImportTradesModal from '@/features/tradeImport/components/ImportTradesModal'
 import { aiAnalysisAPI } from '@/features/aiAnalysis/api'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 const { RangePicker } = DatePicker;
 
@@ -56,6 +56,8 @@ const Transactions = () => {
   const [importModalVisible, setImportModalVisible] = useState(false)
   const [exporting, setExporting] = useState(false)
   const navigate = useNavigate()
+  // 其他頁面（例如風險中心）可用 ?tradeId=xxx 直接打開某筆交易的 drawer
+  const [searchParams, setSearchParams] = useSearchParams()
   const [editingTrade, setEditingTrade] = useState(null) // 正在編輯的交易資料
   const [selectedRecord, setSelectedRecord] = useState(null)
   // 鍵盤導覽：被「框選」的列 key（null 表示尚未選中任何列）
@@ -78,6 +80,17 @@ const Transactions = () => {
     pageSizeOptions: [10, 30, 60, 90],
     showTotal: (total, range) => `第 ${range[0]}-${range[1]} 天，共 ${total} 天`,
   })
+
+  // 從風險中心等頁面帶 ?tradeId= 進來時直接開該筆交易，開完清掉參數避免重整又彈出
+  useEffect(() => {
+    const openTradeId = searchParams.get('tradeId')
+    if (!openTradeId) return
+    setSelectedRecord({ id: openTradeId })
+    setDrawerVisible(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('tradeId')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   // filter 變動時，daily pagination 回到第 1 頁
   useEffect(() => {
