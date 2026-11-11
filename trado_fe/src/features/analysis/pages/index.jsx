@@ -42,6 +42,7 @@ const RollingChart = ({ label, data, color, axisFormatter, tipFormatter }) => (
         }}
         height={180}
         autoFit
+        containerStyle={{ width: '100%', height: 'inherit' }}
       />
     </div>
   </div>
@@ -261,6 +262,7 @@ const Analysis = () => {
                   }}
                   height={280}
                   autoFit
+                  containerStyle={{ width: '100%', height: 'inherit' }}
                 />
               </div>
             </Card>
@@ -297,6 +299,7 @@ const Analysis = () => {
                   }}
                   height={200}
                   autoFit
+                  containerStyle={{ width: '100%', height: 'inherit' }}
                 />
               </div>
             </Card>
