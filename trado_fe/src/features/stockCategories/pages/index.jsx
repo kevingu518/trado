@@ -4,6 +4,7 @@ import { useStockCategories } from '../hooks/useStockCategories';
 import { useAllocation } from '../hooks/useAllocation';
 import AllocationView from '../components/AllocationView';
 import ManageView from '../components/ManageView';
+import CategoryFlowView from '../components/CategoryFlowView';
 import '../styles/index.scss';
 
 const StockCategoriesPage = () => {
@@ -63,6 +64,11 @@ const StockCategoriesPage = () => {
                   onRefetch={refetchBoth}
                 />
               ),
+            },
+            {
+              key: 'flow',
+              label: '資金流向',
+              children: <CategoryFlowView />,
             },
             {
               key: 'manage',

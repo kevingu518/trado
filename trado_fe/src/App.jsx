@@ -11,12 +11,11 @@ import AuthLayout from './layouts/AuthLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
-// import Trades from './pages/Trades';
-import Transactions from './pages/Transactions';
 import Trades from './features/trades/pages';
 import Strategies from './features/strategies/pages';
 import StockCategories from './features/stockCategories/pages';
 import Dashboard from './features/dashboard/pages';
+import Analysis from './features/analysis/pages';
 import Settings from './features/account/pages/Settings';
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -49,12 +48,11 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="analysis" element={<Analysis />} />
               <Route path="trades" element={<Trades />} />
-              <Route path="transactions" element={<Transactions />} />
               <Route path="strategy" element={<Strategies />} />
               <Route path="stock-categories" element={<StockCategories />} />
               <Route path="settings" element={<Settings />} />
-              <Route path="profile" element={<div>使用者資料頁面</div>} />
             </Route>
 
             {/* 404 重定向 */}

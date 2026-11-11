@@ -1,10 +1,15 @@
 import cron from 'node-cron';
 import prisma from '../config/database.js';
 import StockPriceService from '../services/StockPriceService.js';
+import CorporateActionService from '../services/CorporateActionService.js';
+import { BENCHMARK_SYMBOLS } from '../utils/benchmarks.js';
 
 /**
  * 撈出全資料庫所有 status='open' 的 trades 的 unique symbols
  * (跨用戶共用 cache，因為股價是公開資料)
+ *
+ * 另外固定補上基準（TAIEX、0050）：績效頁要拿它們算 alpha/beta 與超額報酬，
+ * 只抓持倉標的的話，基準線會停在最後一次手動補價那天，之後全部過期。
  */
 const collectOpenSymbols = async () => {
   const rows = await prisma.trade.findMany({
@@ -12,7 +17,8 @@ const collectOpenSymbols = async () => {
     select: { symbol: true },
     distinct: ['symbol'],
   });
-  return rows.map((r) => r.symbol).filter(Boolean);
+  const symbols = rows.map((r) => r.symbol).filter(Boolean);
+  return [...new Set([...symbols, ...BENCHMARK_SYMBOLS])];
 };
 
 const runOnce = async () => {
@@ -29,6 +35,20 @@ const runOnce = async () => {
     console.log(
       `[StockPriceJob] Done: ${ok} ok / ${fail} fail / ${symbols.length} total, ${elapsed}s`
     );
+
+    // 除權息事件：上市補最近 7 天（參考價偶有更正），上櫃只抓當日
+    try {
+      const ca = await CorporateActionService.syncDaily();
+      const twse = ca.twse ? `${ca.twse.written} 筆` : '失敗';
+      const tpex = ca.tpex ? `${ca.tpex.written} 筆` : '失敗';
+      console.log(`[StockPriceJob] Corporate actions: TWSE ${twse} / TPEX ${tpex}`);
+      if (ca.errors.length > 0) {
+        console.warn(`[StockPriceJob] Corporate actions warnings: ${ca.errors.join('; ')}`);
+      }
+    } catch (err) {
+      // 除權息同步失敗不該讓股價更新被視為失敗
+      console.error('[StockPriceJob] Corporate action sync failed:', err.message);
+    }
   } catch (err) {
     console.error('[StockPriceJob] Failed:', err.message);
   }

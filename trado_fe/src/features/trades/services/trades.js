@@ -1,9 +1,10 @@
-import { 
-  getTradesApi, 
-  getTradeApi, 
-  createTradeApi, 
-  updateTradeApi, 
-  deleteTradeApi 
+import {
+  getTradesApi,
+  getTradeApi,
+  createTradeApi,
+  updateTradeApi,
+  deleteTradeApi,
+  exportTradesApi,
 } from '@api/api_trade'
 import { tradeDTO } from './tradeDTO'
 
@@ -95,6 +96,19 @@ export const tradesService = {
    */
   async removeTrade(tradeId) {
     return await deleteTradeApi(tradeId)
+  },
+
+  /**
+   * 匯出 CSV（顆粒度為「一筆部位調整一列」，與匯入的系統欄位一致，可再匯入）
+   *
+   * filters 與 fetchTrades 的查詢參數相同（status / symbol / direction /
+   * startDate / endDate / strategy），後端套用同一組 where 條件。
+   *
+   * 這裡只回傳檔案內容，不碰 DOM：觸發下載是元件的事。
+   * @returns {{blob: Blob, filename: string, rowCount: number}}
+   */
+  async exportTrades(filters = {}) {
+    return await exportTradesApi(filters)
   },
 }
 

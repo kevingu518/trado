@@ -13,6 +13,8 @@ import devRoutes from './routes/devRoutes.js';
 import stockRoutes from './routes/stockRoutes.js';
 import stockCategoryRoutes from './routes/stockCategoryRoutes.js';
 import aiAnalysisRoutes from './routes/aiAnalysisRoutes.js';
+import tradeImportRoutes from './routes/tradeImportRoutes.js';
+import analysisRoutes from './routes/analysisRoutes.js';
 import './jobs/snapshotJob.js';
 import './jobs/stockPriceJob.js';
 
@@ -41,6 +43,8 @@ app.use(
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true, // 如果之後要用 cookies / auth header，可以保留為 true
+    // 下載匯出檔時前端要讀得到檔名與筆數（跨網域下自訂 header 預設不曝光）
+    exposedHeaders: ['Content-Disposition', 'X-Row-Count'],
   })
 );
 
@@ -65,6 +69,8 @@ app.use('/api/dev', devRoutes);
 app.use('/api/stocks', stockRoutes);
 app.use('/api/stock-categories', stockCategoryRoutes);
 app.use('/api/ai-analysis', aiAnalysisRoutes);
+app.use('/api/trade-import', tradeImportRoutes);
+app.use('/api/analysis', analysisRoutes);
 
 // 404 handler
 app.use((req, res) => {

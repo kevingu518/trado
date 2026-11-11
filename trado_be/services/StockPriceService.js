@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
-import { fetchTwseMonth } from './stockSources/twseSource.js';
+import { fetchTwseMonth, fetchTwseIndexMonth } from './stockSources/twseSource.js';
 import { fetchTpexMonth } from './stockSources/tpexSource.js';
+import { INDEX_SYMBOLS } from '../utils/benchmarks.js';
 
 // 列出某 symbol 在 [startIso, endIso] 區間涵蓋的所有月份首日 YYYYMMDD
 const enumerateMonths = (startIso, endIso) => {
@@ -24,6 +25,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * 先 TWSE，找不到再 TPEX。回傳 { source, rows }；都找不到 → { source: null, rows: [] }
  */
 const fetchMonthFromSource = async (symbol, yyyymmdd) => {
+  // 大盤指數走 FMTQIK，不是個股的 STOCK_DAY，也不能退回 TPEX
+  if (INDEX_SYMBOLS.has(symbol)) {
+    const idx = await fetchTwseIndexMonth(yyyymmdd);
+    return idx.found ? { source: 'TWSE', rows: idx.rows } : { source: null, rows: [] };
+  }
+
   const twse = await fetchTwseMonth(symbol, yyyymmdd);
   if (twse.found) return { source: 'TWSE', rows: twse.rows };
 
@@ -80,7 +87,9 @@ const ensureRangeCached = async (symbol, startIso, endIso) => {
     const month = missingMonths[i];
     try {
       let result;
-      if (knownSource === 'TWSE') {
+      if (INDEX_SYMBOLS.has(symbol)) {
+        result = await fetchMonthFromSource(symbol, month);
+      } else if (knownSource === 'TWSE') {
         const twse = await fetchTwseMonth(symbol, month);
         result = twse.found ? { source: 'TWSE', rows: twse.rows } : await fetchMonthFromSource(symbol, month);
       } else if (knownSource === 'TPEX') {

@@ -15,6 +15,9 @@ router.post('/', asyncHandler(tradeController.createTrade));
 // Daily positions（必須在 /:id 之前，避免被 /:id 比對掉）
 router.get('/daily-positions', asyncHandler(tradeController.getDailyPositions));
 
+// 匯出 CSV（必須在 /:id 之前，否則 export 會被當成一個 id）
+router.get('/export', asyncHandler(tradeController.exportTrades));
+
 // Position routes (必須在 /:id 之前，避免路由衝突)
 router.get('/:id/positions', asyncHandler(tradeController.getPositions));
 router.post('/:id/positions', asyncHandler(tradeController.createPosition));

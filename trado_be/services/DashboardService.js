@@ -1,5 +1,7 @@
 import prisma from '../config/database.js';
-import AccountService from './AccountService.js';
+import EquityService from './EquityService.js';
+import RiskService from './RiskService.js';
+import { DEFAULT_BENCHMARK } from '../utils/benchmarks.js';
 
 // ── 枚舉中文映射 ──────────────────────────────────────
 const EMOTION_LABELS = {
@@ -26,16 +28,38 @@ const ERROR_LABELS = {
   OTHER: '其他',
 };
 
+/**
+ * 勝率的 Wilson 95% 信賴區間
+ *
+ * 直接拿 wins/n 當勝率，在樣本少時會嚴重高估把握：3 勝 0 敗看起來是 100%，
+ * 但它跟 300 勝 0 敗不是同一件事。Wilson 區間在 p 接近 0 或 1、n 很小時仍然穩定
+ * （Wald 區間會給出超過 100% 或負的下界），適合這種「勝率」型比例。
+ */
+const wilsonInterval = (k, n, z = 1.96) => {
+  if (n === 0) return { low: null, high: null };
+  const phat = k / n;
+  const denom = 1 + (z * z) / n;
+  const center = (phat + (z * z) / (2 * n)) / denom;
+  const margin = (z * Math.sqrt((phat * (1 - phat)) / n + (z * z) / (4 * n * n))) / denom;
+  return {
+    low: Number((Math.max(0, center - margin) * 100).toFixed(1)),
+    high: Number((Math.min(1, center + margin) * 100).toFixed(1)),
+  };
+};
+
+// 少於這個交易筆數，勝率與盈虧比的信賴區間會太寬，前端標示為小樣本
+const MIN_TRADES_FOR_CONFIDENCE = 30;
+
 class DashboardService {
   /**
    * 聚合 Dashboard 所有數據
    */
-  async getDashboardData(userId, period) {
+  async getDashboardData(userId, period, benchmark = DEFAULT_BENCHMARK) {
     const { startDate, endDate } = this._getPeriodDateRange(period);
 
     const [account, performance, strategies, trades, discipline] = await Promise.all([
       this._getAccount(userId),
-      this._getPerformance(userId, startDate, endDate),
+      this._getPerformance(userId, startDate, endDate, benchmark),
       this._getStrategies(userId, startDate, endDate),
       this._getTrades(userId, startDate, endDate),
       this._getDiscipline(userId, startDate, endDate),
@@ -47,28 +71,11 @@ class DashboardService {
   // ── 帳戶快照 ──────────────────────────────────────────
 
   async _getAccount(userId) {
-    // 動態計算含交易成本的現金餘額
-    const cashBalance = await AccountService._computeCashBalance(userId);
+    // 持倉以最新收盤價評價（純 DB 讀取；沒有收盤價的標的會列在 missingPriceSymbols）
+    const valuation = await EquityService.getValuation(userId);
 
-    // 持倉統計
-    const openTrades = await prisma.trade.findMany({
-      where: { userId, status: 'open' },
-      select: {
-        symbol: true,
-        direction: true,
-        totalValue: true,
-      },
-    });
-
-    const longCount = openTrades.filter(t => t.direction === 'long').length;
-    const shortCount = openTrades.filter(t => t.direction === 'short').length;
-
-    const positionValue = openTrades.reduce((sum, t) => {
-      return sum + (t.totalValue ? Number(t.totalValue) : 0);
-    }, 0);
-
-    // 總資產 = 現金 + 持倉市值（即使沒有入金，也能從持倉顯示）
-    const totalAssets = cashBalance + Math.round(positionValue);
+    const longCount = valuation.positions.filter((p) => p.direction === 'long').length;
+    const shortCount = valuation.positions.filter((p) => p.direction === 'short').length;
 
     // 最近 7 筆快照作為 assetTrend
     const snapshots = await prisma.balanceSnapshot.findMany({
@@ -80,110 +87,139 @@ class DashboardService {
       ? snapshots.reverse().map(s => s.totalAssets)
       : null;
 
-    const positions = openTrades.map(t => ({
-      symbol: t.symbol,
-      name: t.symbol, // 暫無股票名稱，先用代號
-      direction: t.direction,
-      pnl: null, // 未實現損益需要即時價格，暫為 null
-    }));
-
     return {
-      totalAssets,
-      cashLevel: cashBalance,
-      openPositions: openTrades.length,
+      totalAssets: valuation.totalAssets,
+      cashLevel: valuation.cashBalance,
+      positionValue: valuation.marketValue,
+      costValue: valuation.costValue,
+      openPositions: valuation.positions.length,
       longCount,
       shortCount,
-      unrealizedPnL: null,
+      unrealizedPnL: valuation.unrealizedPnL,
       assetTrend,
-      positions,
+      missingPriceSymbols: valuation.missingPriceSymbols,
+      positions: valuation.positions.map((p) => ({
+        symbol: p.symbol,
+        name: p.symbol, // 暫無股票名稱，先用代號
+        direction: p.direction,
+        shares: p.shares,
+        avgPrice: p.avgPrice,
+        currentPrice: p.currentPrice,
+        marketValue: p.marketValue,
+        pnl: p.unrealizedPnL,
+      })),
     };
   }
 
   // ── 績效指標 ──────────────────────────────────────────
 
-  async _getPerformance(userId, startDate, endDate) {
-    const trades = await prisma.trade.findMany({
-      where: {
-        userId,
-        status: 'closed',
-        closedAt: { gte: startDate, lte: endDate },
-      },
-      select: { netProfitLoss: true, closedAt: true },
-      orderBy: { closedAt: 'asc' },
-    });
+  /**
+   * 績效
+   *
+   * 兩類指標刻意分開，因為它們回答不同問題：
+   *  - 交易統計（勝率、賺賠比、平均損益）看的是「每一筆單的品質」
+   *  - 帳戶績效（TWR、年化報酬、波動、Sharpe、MDD、alpha/beta）看的是
+   *    「這段時間資金實際的表現」，用每日淨值序列算，才能與基準比較
+   *
+   * 舊版把「每筆交易損益的平均 / 標準差」叫做夏普，那不是 Sharpe ratio：
+   * 它沒有年化、沒有無風險利率、也沒有時間尺度，數字無法解讀。
+   */
+  async _getPerformance(userId, startDate, endDate, benchmark = DEFAULT_BENCHMARK) {
+    const fromIso = startDate.toISOString().slice(0, 10);
+    const toIso = endDate.toISOString().slice(0, 10);
 
-    if (trades.length === 0) {
-      return {
-        myReturn: null,
-        marketReturn: null,
-        myPnL: 0,
-        trades: 0,
-        winRate: 0,
-        rrRatio: 0,
-        maxDrawdown: 0,
-        sharpe: 0,
-        avgPnl: 0,
-      };
-    }
+    const [trades, equity, risk] = await Promise.all([
+      prisma.trade.findMany({
+        where: {
+          userId,
+          status: 'closed',
+          closedAt: { gte: startDate, lte: endDate },
+        },
+        select: { netProfitLoss: true, closedAt: true },
+        orderBy: { closedAt: 'asc' },
+      }),
+      EquityService.getPerformance(userId, { from: fromIso, to: toIso, benchmark }),
+      RiskService.getRiskStats(userId, startDate, endDate),
+    ]);
 
-    const pnls = trades.map(t => t.netProfitLoss || 0);
+    const pnls = trades.map((t) => t.netProfitLoss || 0);
     const myPnL = pnls.reduce((a, b) => a + b, 0);
     const tradeCount = trades.length;
-    const avgPnl = Math.round(myPnL / tradeCount);
+    const avgPnl = tradeCount > 0 ? Math.round(myPnL / tradeCount) : 0;
 
-    const wins = pnls.filter(p => p > 0);
-    const losses = pnls.filter(p => p < 0);
-    const winRate = (wins.length / tradeCount) * 100;
+    const wins = pnls.filter((p) => p > 0);
+    const losses = pnls.filter((p) => p < 0);
+    const winRate = tradeCount > 0 ? (wins.length / tradeCount) * 100 : 0;
 
     const avgWin = wins.length > 0 ? wins.reduce((a, b) => a + b, 0) / wins.length : 0;
-    const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length) : 0;
+    const avgLoss =
+      losses.length > 0 ? Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length) : 0;
     const rrRatio = avgLoss > 0 ? Number((avgWin / avgLoss).toFixed(2)) : 0;
 
-    // 最大回撤：用 BalanceSnapshot.totalAssets 時間序列計算
-    let maxDrawdown = 0;
-    const snapshots = await prisma.balanceSnapshot.findMany({
-      where: { userId, date: { gte: startDate, lte: endDate } },
-      orderBy: { date: 'asc' },
-      select: { totalAssets: true },
-    });
+    // 獲利因子 = 總獲利 / 總虧損（金額加總，不是筆數加總）
+    const grossProfit = wins.reduce((a, b) => a + b, 0);
+    const grossLoss = Math.abs(losses.reduce((a, b) => a + b, 0));
+    const profitFactor = grossLoss > 0 ? Number((grossProfit / grossLoss).toFixed(2)) : null;
 
-    if (snapshots.length > 1) {
-      let peak = snapshots[0].totalAssets;
-      for (const snap of snapshots) {
-        if (snap.totalAssets > peak) peak = snap.totalAssets;
-        if (peak > 0) {
-          const dd = ((snap.totalAssets - peak) / peak) * 100;
-          if (dd < maxDrawdown) maxDrawdown = dd;
-        }
-      }
-    }
+    // 期望值 = 每筆交易平均會賺多少。winRate 用比例而非百分比
+    const pWin = tradeCount > 0 ? wins.length / tradeCount : 0;
+    const expectancy =
+      tradeCount > 0 ? Math.round(pWin * avgWin - (1 - pWin) * avgLoss) : null;
 
-    // 夏普值（簡化版：mean / stddev）
-    const mean = myPnL / tradeCount;
-    const variance = pnls.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / tradeCount;
-    const stddev = Math.sqrt(variance);
-    const sharpe = stddev > 0 ? Number((mean / stddev).toFixed(2)) : 0;
+    // 勝率本身有抽樣誤差，附上 95% Wilson 區間與樣本數
+    const winRateCi = wilsonInterval(wins.length, tradeCount);
 
-    // 報酬率：取期初快照的 totalAssets 作為分母
-    let myReturn = null;
-    const startSnapshot = await prisma.balanceSnapshot.findFirst({
-      where: { userId, date: { lte: startDate } },
-      orderBy: { date: 'desc' },
-    });
-    if (startSnapshot && startSnapshot.totalAssets > 0) {
-      myReturn = Number(((myPnL / startSnapshot.totalAssets) * 100).toFixed(1));
-    }
+    const pct = (v) => (v == null ? null : Number((v * 100).toFixed(1)));
 
     return {
-      myReturn,
-      marketReturn: null,
+      // ── 帳戶績效（TWR，已排除出入金）──
+      myReturn: pct(equity.totalReturn),
+      marketReturn: pct(equity.marketReturn),
+      excessReturn: pct(equity.excessReturn),
+      annualizedReturn: pct(equity.annualizedReturn),
+      maxDrawdown: pct(equity.maxDrawdown),
+      assetMaxDrawdown: pct(equity.assetMaxDrawdown),
+      volatility: pct(equity.volatility),
+      sharpe: equity.sharpe,
+      sortino: equity.sortino,
+      calmar: equity.calmar,
+      alpha: pct(equity.alpha),
+      beta: equity.beta,
+      trackingError: pct(equity.trackingError),
+      informationRatio: equity.informationRatio,
+      benchmark: equity.benchmark,
+      observations: equity.observations,
+      // 樣本不足時年化指標一律為 null，前端據此顯示「樣本不足」而不是畫出假數字：
+      //   < 20 個交易日：波動、Sharpe、Sortino、beta、追蹤誤差、資訊比率
+      //   < 60 個交易日：年化報酬、alpha、Calmar
+      sampleSufficient: equity.sampleSufficient,
+      annualizationSufficient: equity.annualizationSufficient,
+      minObservations: equity.minObservations,
+      minAnnualizedObservations: equity.minAnnualizedObservations,
+
+      // ── 交易統計 ──
       myPnL,
       trades: tradeCount,
       winRate: Number(winRate.toFixed(1)),
+      winRateCi,
       rrRatio,
-      maxDrawdown: Number(maxDrawdown.toFixed(1)),
-      sharpe,
+      profitFactor,
+      expectancy,
+      avgWin: Math.round(avgWin),
+      avgLoss: Math.round(avgLoss),
+      // 樣本少於 30 筆時，勝率與盈虧比的估計不穩定，前端要標示
+      tradeSampleSufficient: tradeCount >= MIN_TRADES_FOR_CONFIDENCE,
+      minTradesForConfidence: MIN_TRADES_FOR_CONFIDENCE,
       avgPnl,
+
+      // ── 以風險為單位（R）──
+      // 沒填停損價的交易算不出 R，這裡的樣本數可能遠小於 trades，
+      // 前端要用 rTrades / tradesTotal 判斷資料夠不夠，不要當成 0 處理
+      risk,
+
+      // ── 圖表用 ──
+      series: equity.series,
+      missingPriceSymbols: equity.missingPriceSymbols,
     };
   }
 

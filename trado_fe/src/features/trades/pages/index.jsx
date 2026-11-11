@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import { Table, Tag, Button, Space, message, Card, Row, Col, Tooltip, DatePicker, Select, Input, Pagination, Statistic, Dropdown, Segmented, Drawer } from 'antd'
 
 const { Option } = Select;
-import { EllipsisOutlined,EditOutlined, EyeOutlined, PlusOutlined, CheckOutlined, CloseOutlined, MinusOutlined, FileTextOutlined, ClockCircleOutlined, DollarOutlined, ClearOutlined, ToolOutlined, RobotOutlined} from '@ant-design/icons'
+import { EllipsisOutlined,EditOutlined, EyeOutlined, PlusOutlined, CheckOutlined, CloseOutlined, MinusOutlined, FileTextOutlined, ClockCircleOutlined, DollarOutlined, ClearOutlined, ToolOutlined, RobotOutlined, ImportOutlined, ExportOutlined} from '@ant-design/icons'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import { to } from 'await-to-js'
@@ -21,8 +21,8 @@ import AddTradeModal from '../components/AddTradeModal'
 import AddPositionModal from '../components/AddPositionModal'
 import TradeDrawer from '../components/TradeDrawer'
 import DailyPositionsView from '../components/DailyPositionsView'
-import CategoryFlowView from '@/features/stockCategories/components/CategoryFlowView'
 import AnalysisPanel from '@/features/aiAnalysis/components/AnalysisPanel'
+import ImportTradesModal from '@/features/tradeImport/components/ImportTradesModal'
 import { aiAnalysisAPI } from '@/features/aiAnalysis/api'
 import { useNavigate } from 'react-router-dom'
 
@@ -53,6 +53,8 @@ const Transactions = () => {
   const [addPositionModalVisible, setAddPositionModalVisible] = useState(false)
   const [addTradeModalVisible, setAddTradeModalVisible] = useState(false)
   const [aiDrawerVisible, setAiDrawerVisible] = useState(false)
+  const [importModalVisible, setImportModalVisible] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const navigate = useNavigate()
   const [editingTrade, setEditingTrade] = useState(null) // 正在編輯的交易資料
   const [selectedRecord, setSelectedRecord] = useState(null)
@@ -129,12 +131,23 @@ const Transactions = () => {
     })
   }, { enabled: viewMode === 'daily', deps: [viewMode] })
 
+  // 目前套用的 filter（列表與匯出共用同一組條件 —— 匯出要跟畫面上看到的一致，
+  // 所以只在一處組參數，不各自再寫一份）
+  const tradeFilters = useMemo(() => ({
+    startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
+    endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
+    symbol: symbolFilter,
+    direction: directionFilter,
+    status: statusFilter === 'all' ? undefined : statusFilter === 'completed' ? 'closed' : statusFilter,
+    strategy: strategyFilter,
+  }), [dateRange, symbolFilter, directionFilter, statusFilter, strategyFilter])
+
   // -------------------------   hooks   ----------------------------
   // 使用 useTrades hook 取得交易資料
-  const { 
-    data: tradesData, 
-    loading: tradesLoading, 
-    error: tradesError, 
+  const {
+    data: tradesData,
+    loading: tradesLoading,
+    error: tradesError,
     refetch: refetchTrades,
     createTrade,
     creating: creatingTrade,
@@ -143,12 +156,7 @@ const Transactions = () => {
   } = useTrades({
     page: pagination.current,
     pageSize: pagination.pageSize,
-    startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
-    endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
-    symbol: symbolFilter,
-    direction: directionFilter,
-    status: statusFilter === 'all' ? undefined : statusFilter === 'completed' ? 'closed' : statusFilter,
-    strategy: strategyFilter,
+    ...tradeFilters,
   })
   // 持股族群（族群 tag 顯示與編輯）
   const {
@@ -223,7 +231,7 @@ const Transactions = () => {
   // 鍵盤導覽（↑/↓ 移動框選、Enter 開啟詳情）：
   // 放在 displayData 計算之後，避免 deps 在 TDZ 中讀到 displayData
   // 有 drawer / modal 開啟時禁用，避免和裡面的鍵盤行為打架
-  const overlayOpen = drawerVisible || addPositionModalVisible || addTradeModalVisible || aiDrawerVisible
+  const overlayOpen = drawerVisible || addPositionModalVisible || addTradeModalVisible || aiDrawerVisible || importModalVisible
   const tradesNavEnabled = !overlayOpen && viewMode === 'trades'
   useShortcut('trades-row-up', () => {
     setFocusedRowKey((prev) => {
@@ -277,6 +285,43 @@ const Transactions = () => {
       return
     }
     setAiDrawerVisible(true)
+  }
+
+  // 開啟匯入精靈（上傳 → 欄位對應 → 預覽確認）
+  const handleImport = () => {
+    setImportModalVisible(true)
+  }
+
+  // 匯入完成：立刻重載列表，新寫入的交易與持倉才看得到
+  const handleImported = () => {
+    refetchTrades()
+  }
+
+  // 匯出目前 filter 的交易紀錄（顆粒度是一筆部位調整一列，可再匯入）
+  const handleExport = async () => {
+    setExporting(true)
+    const [err, data] = await to(tradesService.exportTrades(tradeFilters))
+    setExporting(false)
+
+    if (err) {
+      message.error(err.message || '匯出失敗')
+      return
+    }
+    if (!data?.rowCount) {
+      message.warning('目前條件沒有可匯出的紀錄')
+      return
+    }
+
+    // Blob → 暫時的 object URL → 觸發下載 → 立刻釋放
+    const url = URL.createObjectURL(data.blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = data.filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    message.success(`已匯出 ${data.rowCount} 筆紀錄`)
   }
 
   // 處理新增 trade（可選同時建立倉位、可選同步補入金）
@@ -743,6 +788,29 @@ const Transactions = () => {
       },
     },
     {
+      title: 'R',
+      dataIndex: 'rMultiple',
+      key: 'rMultiple',
+      width: 72,
+      align: 'right',
+      // R = 每單位盈虧 ÷ 初始風險（進場價到停損價）；只有已平倉且建倉時填過停損價才算得出來
+      sorter: (a, b) => (a.rMultiple ?? -Infinity) - (b.rMultiple ?? -Infinity),
+      render: (r) => {
+        if (r == null) {
+          return (
+            <Tooltip title="沒有填停損價，或停損價不在正確的一側，算不出 R">
+              <span style={{ color: '#999' }}>-</span>
+            </Tooltip>
+          )
+        }
+        return (
+          <span style={{ color: r > 0 ? CLR_UP : r < 0 ? CLR_DOWN : undefined, fontWeight: 600 }}>
+            {r > 0 ? '+' : ''}{r.toFixed(2)}
+          </span>
+        )
+      },
+    },
+    {
       title: '策略',
       dataIndex: 'strategy',
       key: 'strategy',
@@ -860,7 +928,6 @@ const Transactions = () => {
               options={[
                 { label: '交易記錄', value: 'trades' },
                 { label: '每日進出', value: 'daily' },
-                { label: '族群流向', value: 'flow' },
               ]}
             />
             {/* {viewMode === 'trades' && (
@@ -869,6 +936,23 @@ const Transactions = () => {
           </div>
           {viewMode === 'trades' && (
             <Space>
+              <Button
+                className='rounded-sm'
+                icon={<ImportOutlined />}
+                onClick={handleImport}
+                size="middle"
+              >
+                匯入
+              </Button>
+              <Button
+                className='rounded-sm'
+                icon={<ExportOutlined />}
+                onClick={handleExport}
+                loading={exporting}
+                size="middle"
+              >
+                匯出
+              </Button>
               <Button
                 className='rounded-sm'
                 icon={<RobotOutlined />}
@@ -890,7 +974,6 @@ const Transactions = () => {
           )}
         </div>
         {/* filter */}
-        {viewMode !== 'flow' && (
         <div className='useBetween my-sm py-sm'>
           <div className="useStart gap-sm">
             <RangePicker
@@ -1009,7 +1092,6 @@ const Transactions = () => {
             </div>
           )}
         </div>
-        )}
         {viewMode === 'trades' ? (
           <>
             {/* table */}
@@ -1073,7 +1155,7 @@ const Transactions = () => {
               />
             </div>
           </>
-        ) : viewMode === 'daily' ? (
+        ) : (
           <DailyPositionsView
             dateRange={dateRange}
             symbolFilter={symbolFilter}
@@ -1087,10 +1169,6 @@ const Transactions = () => {
               setDrawerVisible(true)
             }}
           />
-        ) : (
-          <PerfectScrollbar className='container flow-panel bg-white'>
-            <CategoryFlowView />
-          </PerfectScrollbar>
         )}
 
         <TradeDrawer
@@ -1122,6 +1200,12 @@ const Transactions = () => {
           stockCategories={stockCategories}
           symbolCategoryMap={symbolCategoryMap}
           setSymbolCategory={setSymbolCategory}
+        />
+
+        <ImportTradesModal
+          visible={importModalVisible}
+          onClose={() => setImportModalVisible(false)}
+          onImported={handleImported}
         />
 
         <Drawer

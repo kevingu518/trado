@@ -1,6 +1,7 @@
 import React from 'react'
-import { Segmented, Card, Progress, Rate, Spin, Tag, Tooltip, theme as antdTheme } from 'antd'
-import { Column, Scatter } from '@ant-design/plots'
+import { useNavigate } from 'react-router-dom'
+import { Segmented, Card, Button, Progress, Rate, Spin, Tag, Tooltip, theme as antdTheme } from 'antd'
+import { Column, Line, Scatter } from '@ant-design/plots'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { useDashboard, fmtMoney, fmtSign, fmtPct } from '../hooks/useDashboard'
 import Sparkline from '../components/Sparkline'
@@ -10,7 +11,34 @@ const SectionTitle = ({ label }) => (
   <span className="text-subtitle">{label}</span>
 )
 
+const BENCHMARK_LABELS = { TAIEX: '加權指數', '0050': '元大台灣50' }
+
+/**
+ * 單一績效指標格
+ * value 為 null 代表後端判定樣本不足而不計算，顯示破折號並用 tooltip 說明原因，
+ * 不要顯示 0 —— 0 會被讀成「算出來是 0」。
+ */
+const MetricCell = ({ label, value, color, hint, dim }) => (
+  <div className="perf-kpi-item">
+    <Tooltip title={hint || null}>
+      <span
+        className="mc-label text-hint"
+        style={{ cursor: hint ? 'help' : 'default' }}
+      >
+        {label}
+      </span>
+    </Tooltip>
+    <span
+      className="perf-kpi-value fw-600"
+      style={{ color, opacity: dim ? 0.45 : 1 }}
+    >
+      {value}
+    </span>
+  </div>
+)
+
 const Dashboard = () => {
+  const navigate = useNavigate()
   const { theme } = useTheme()
   const { token } = antdTheme.useToken()
 
@@ -31,6 +59,7 @@ const Dashboard = () => {
 
   const {
     periodRange, setPeriodRange,
+    benchmark, setBenchmark,
     loading,
     account: acct,
     performance: perf,
@@ -44,6 +73,7 @@ const Dashboard = () => {
     avgWin, avgLoss,
     indexDist,
     weeklyTrades,
+    perfCurveData,
   } = useDashboard()
 
   if (!acct || !perf || !discipline) {
@@ -55,6 +85,7 @@ const Dashboard = () => {
   }
 
   const cashPct   = acct.totalAssets ? Math.round((acct.cashLevel / acct.totalAssets) * 100) : 0
+  const risk      = perf.risk
   const trend = acct.assetTrend || []
   const trendDiff = trend.length > 1 ? trend[trend.length - 1] - trend[0] : 0
   const trendClr  = pnlColor(trendDiff)
@@ -254,14 +285,50 @@ const Dashboard = () => {
               {/* ══════ ② 績效 vs 大盤 ══════ */}
               <Card
                 className="dashboard-section-card"
-                title={<SectionTitle label="績效 vs 大盤" />}
+                title={
+                  <div className="card-title-row">
+                    <SectionTitle label="績效 vs 基準" />
+                    {perf.observations > 0 && (
+                      <Tooltip title={`本期間可用的日報酬樣本數（交易日）`}>
+                        <Tag bordered={false} style={{ marginRight: 0, fontSize: 11 }}>
+                          {perf.observations} 交易日
+                        </Tag>
+                      </Tooltip>
+                    )}
+                    {perf.trades > 0 && (
+                      <Tooltip title="本期間已平倉的交易筆數（勝率、盈虧比、獲利因子、期望值都基於這些單）">
+                        <Tag bordered={false} style={{ marginRight: 0, fontSize: 11 }}>
+                          {perf.trades} 筆
+                        </Tag>
+                      </Tooltip>
+                    )}
+                    {perf.trades > 0 && !perf.tradeSampleSufficient && (
+                      <Tooltip title={`少於 ${perf.minTradesForConfidence} 筆交易，勝率與盈虧比的抽樣誤差很大，請把區間一起看`}>
+                        <Tag color="warning" bordered={false} style={{ marginRight: 0, fontSize: 11 }}>
+                          交易樣本少
+                        </Tag>
+                      </Tooltip>
+                    )}
+                  </div>
+                }
+                extra={
+                  <Segmented
+                    size="small"
+                    value={benchmark}
+                    onChange={setBenchmark}
+                    options={[
+                      { label: '加權指數', value: 'TAIEX' },
+                      { label: '0050', value: '0050' },
+                    ]}
+                  />
+                }
                 styles={{ body: { padding: '16px' } }}
               >
                 <div className="perf-card">
                   {/* 頂部：報酬率左右對比 */}
                   <div className="perf-return-row">
                     <div className="perf-return-col">
-                      <span className="mc-label text-hint">我的報酬率</span>
+                      <span className="mc-label text-hint">我的報酬率（TWR）</span>
                       <span className="perf-return-big" style={{ color: perf.myReturn != null ? pnlColor(perf.myReturn) : CLR_NONE }}>
                         {perf.myReturn != null ? fmtPct(perf.myReturn) : '--'}
                       </span>
@@ -270,7 +337,7 @@ const Dashboard = () => {
                       </span>
                     </div>
                     <div className="perf-return-col">
-                      <span className="mc-label text-hint">大盤報酬率</span>
+                      <span className="mc-label text-hint">{BENCHMARK_LABELS[perf.benchmark] || '基準'}報酬率</span>
                       <span className="perf-return-big" style={{ color: perf.marketReturn != null ? pnlColor(perf.marketReturn) : CLR_NONE }}>
                         {perf.marketReturn != null ? fmtPct(perf.marketReturn) : '--'}
                       </span>
@@ -280,45 +347,182 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  {/* 底部：KPI 一排 */}
+                  {/* 交易統計：看每一筆單的品質 */}
                   <div className="perf-kpi-row">
-                    <div className="perf-kpi-item">
-                      <span className="mc-label text-hint">勝率</span>
-                      <span className="perf-kpi-value fw-600" style={{ color: perf.winRate > 50 ? CLR_UP : perf.winRate > 0 ? CLR_DOWN : CLR_NONE }}>
-                        {perf.winRate > 0 ? `${perf.winRate.toFixed(1)}%` : '−'}
-                      </span>
-                    </div>
-                    <div className="perf-kpi-item">
-                      <span className="mc-label text-hint">盈虧比</span>
-                      <span className="perf-kpi-value fw-600" style={{ color: perf.rrRatio > 1 ? CLR_UP : perf.rrRatio > 0 ? CLR_DOWN : CLR_NONE }}>
-                        {perf.rrRatio > 0 ? `${perf.rrRatio.toFixed(2)}x` : '−'}
-                      </span>
-                    </div>
-                    <div className="perf-kpi-item">
-                      <span className="mc-label text-hint">夏普值</span>
-                      <span className="perf-kpi-value fw-600" style={{ color: perf.sharpe > 1 ? CLR_UP : perf.sharpe > 0 ? CLR_NONE : perf.sharpe < 0 ? CLR_DOWN : CLR_NONE }}>
-                        {perf.trades > 0 ? perf.sharpe.toFixed(2) : '−'}
-                      </span>
-                    </div>
-                    <div className="perf-kpi-item">
-                      <span className="mc-label text-hint">筆數</span>
-                      <span className="perf-kpi-value fw-600">
-                        {perf.trades > 0 ? `${perf.trades} 筆` : '−'}
-                      </span>
-                    </div>
-                    <div className="perf-kpi-item">
-                      <span className="mc-label text-hint">平均損益</span>
-                      <span className="perf-kpi-value fw-600" style={{ color: pnlColor(perf.avgPnl) }}>
-                        {perf.trades > 0 ? <>{fmtSign(perf.avgPnl)}{fmtMoney(perf.avgPnl)}<span className="mc-unit text-hint">元</span></> : '−'}
-                      </span>
-                    </div>
-                    <div className="perf-kpi-item">
-                      <span className="mc-label text-hint">最大回撤</span>
-                      <span className="perf-kpi-value fw-600" style={{ color: perf.maxDrawdown < 0 ? CLR_DOWN : CLR_NONE }}>
-                        {perf.maxDrawdown < 0 ? `${perf.maxDrawdown.toFixed(1)}%` : '−'}
-                      </span>
-                    </div>
+                    <MetricCell
+                      label="勝率"
+                      hint={
+                        perf.winRateCi?.low != null
+                          ? `95% 信賴區間 ${perf.winRateCi.low}% ~ ${perf.winRateCi.high}%（n = ${perf.trades}）`
+                          : '尚無已平倉交易'
+                      }
+                      value={perf.winRate > 0 ? `${perf.winRate.toFixed(1)}%` : '−'}
+                      color={perf.winRate > 50 ? CLR_UP : perf.winRate > 0 ? CLR_DOWN : CLR_NONE}
+                    />
+                    <MetricCell
+                      label="盈虧比"
+                      hint={`平均獲利 ${fmtMoney(perf.avgWin)} ÷ 平均虧損 ${fmtMoney(perf.avgLoss)}`}
+                      value={perf.rrRatio > 0 ? `${perf.rrRatio.toFixed(2)}x` : '−'}
+                      color={perf.rrRatio > 1 ? CLR_UP : perf.rrRatio > 0 ? CLR_DOWN : CLR_NONE}
+                      dim={perf.rrRatio === 0}
+                    />
+                    <MetricCell
+                      label="獲利因子"
+                      hint="總獲利金額 ÷ 總虧損金額，1 以上才代表整體賺錢"
+                      value={perf.profitFactor != null ? perf.profitFactor.toFixed(2) : '−'}
+                      color={perf.profitFactor != null && perf.profitFactor > 1 ? CLR_UP : perf.profitFactor != null ? CLR_DOWN : CLR_NONE}
+                      dim={perf.profitFactor == null}
+                    />
+                    <MetricCell
+                      label="期望值／筆"
+                      hint="勝率 × 平均獲利 − 敗率 × 平均虧損：每做一筆平均的期望損益"
+                      value={perf.expectancy != null
+                        ? <>{fmtSign(perf.expectancy)}{fmtMoney(perf.expectancy)}<span className="mc-unit text-hint">元</span></>
+                        : '−'}
+                      color={perf.expectancy != null ? pnlColor(perf.expectancy) : CLR_NONE}
+                      dim={perf.expectancy == null}
+                    />
                   </div>
+
+                  {/* 帳戶風險：看資金實際的波動，用每日淨值算 */}
+                  <div className="perf-kpi-row">
+                    <MetricCell
+                      label="最大回撤"
+                      hint="以 TWR 淨值指數計算（已排除出入金），不是資產金額的回撤"
+                      color={perf.maxDrawdown != null && perf.maxDrawdown < 0 ? CLR_DOWN : CLR_NONE}
+                      value={perf.maxDrawdown != null ? `${perf.maxDrawdown.toFixed(1)}%` : '—'}
+                      dim={perf.maxDrawdown == null}
+                    />
+                    <MetricCell
+                      label="年化報酬"
+                      hint={perf.annualizedReturn == null
+                        ? `樣本需 ≥ ${perf.minAnnualizedObservations} 個交易日才年化，目前 ${perf.observations} 日`
+                        : 'TWR 以 252 交易日複利年化'}
+                      value={perf.annualizedReturn != null ? fmtPct(perf.annualizedReturn) : '—'}
+                      color={perf.annualizedReturn != null ? pnlColor(perf.annualizedReturn) : CLR_NONE}
+                      dim={perf.annualizedReturn == null}
+                    />
+                    <MetricCell
+                      label="年化波動"
+                      hint={perf.volatility == null
+                        ? `樣本需 ≥ ${perf.minObservations} 個交易日，目前 ${perf.observations} 日`
+                        : '日報酬標準差 × √252'}
+                      value={perf.volatility != null ? `${perf.volatility.toFixed(1)}%` : '—'}
+                      color={CLR_NONE}
+                      dim={perf.volatility == null}
+                    />
+                    <MetricCell
+                      label="Calmar"
+                      hint="年化報酬 ÷ |最大回撤|"
+                      value={perf.calmar != null ? perf.calmar.toFixed(2) : '—'}
+                      color={perf.calmar != null && perf.calmar > 0 ? CLR_UP : perf.calmar != null ? CLR_DOWN : CLR_NONE}
+                      dim={perf.calmar == null}
+                    />
+                  </div>
+
+                  <div className="perf-kpi-row">
+                    <MetricCell
+                      label="夏普值"
+                      hint={`(日報酬 − 無風險利率) / 日報酬標準差 × √252，無風險利率 1.5%`}
+                      value={perf.sharpe != null ? perf.sharpe.toFixed(2) : '—'}
+                      color={perf.sharpe != null && perf.sharpe > 1 ? CLR_UP : perf.sharpe != null && perf.sharpe < 0 ? CLR_DOWN : CLR_NONE}
+                      dim={perf.sharpe == null}
+                    />
+                    <MetricCell
+                      label="Sortino"
+                      hint="只懲罰下檔波動的夏普值"
+                      value={perf.sortino != null ? perf.sortino.toFixed(2) : '—'}
+                      color={perf.sortino != null && perf.sortino > 1 ? CLR_UP : perf.sortino != null && perf.sortino < 0 ? CLR_DOWN : CLR_NONE}
+                      dim={perf.sortino == null}
+                    />
+                    <MetricCell
+                      label="Beta"
+                      hint={`對 ${BENCHMARK_LABELS[perf.benchmark] || '基準'} 的敏感度：1 = 與大盤同幅波動`}
+                      value={perf.beta != null ? perf.beta.toFixed(2) : '—'}
+                      color={CLR_NONE}
+                      dim={perf.beta == null}
+                    />
+                    <MetricCell
+                      label="Alpha（年化）"
+                      hint={`扣除 beta × ${BENCHMARK_LABELS[perf.benchmark] || '基準'} 報酬後，無法被大盤解釋的超額報酬`}
+                      value={perf.alpha != null ? fmtPct(perf.alpha) : '—'}
+                      color={perf.alpha != null ? pnlColor(perf.alpha) : CLR_NONE}
+                      dim={perf.alpha == null}
+                    />
+                  </div>
+
+                  <div className="perf-kpi-row">
+                    <MetricCell
+                      label="追蹤誤差"
+                      hint="我的日報酬與基準日報酬之差的標準差 × √252"
+                      value={perf.trackingError != null ? `${perf.trackingError.toFixed(1)}%` : '—'}
+                      color={CLR_NONE}
+                      dim={perf.trackingError == null}
+                    />
+                    <MetricCell
+                      label="資訊比率"
+                      hint="主動報酬 ÷ 追蹤誤差，衡量偏離大盤是否划算"
+                      value={perf.informationRatio != null ? perf.informationRatio.toFixed(2) : '—'}
+                      color={perf.informationRatio != null && perf.informationRatio > 0 ? CLR_UP : perf.informationRatio != null ? CLR_DOWN : CLR_NONE}
+                      dim={perf.informationRatio == null}
+                    />
+                    <MetricCell
+                      label="資產回撤"
+                      hint="改用資產金額（含出入金影響）計算的回撤，僅供對照；有出入金時會失真"
+                      value={perf.assetMaxDrawdown != null ? `${perf.assetMaxDrawdown.toFixed(1)}%` : '—'}
+                      color={CLR_NONE}
+                      dim={perf.assetMaxDrawdown == null}
+                    />
+                    <MetricCell
+                      label="樣本狀態"
+                      hint="樣本不足時，年化與統計類指標一律不計算，避免用 2–3 天推出年化數字"
+                      value={perf.annualizationSufficient ? '充足' : perf.sampleSufficient ? '偏短' : '不足'}
+                      color={perf.annualizationSufficient ? CLR_NONE : token.colorWarning}
+                      dim={false}
+                    />
+                  </div>
+
+                  {/* 淨值曲線：兩條都從 1.0 起算，看相對成長 */}
+                  {perfCurveData.length > 0 && (
+                    <div className="perf-curve">
+                      <Line
+                        data={perfCurveData}
+                        xField="date"
+                        yField="value"
+                        colorField="series"
+                        shapeField="smooth"
+                        scale={{
+                          color: {
+                            domain: ['我的淨值', '基準'],
+                            range: [theme.primary, CLR_NONE],
+                          },
+                          y: { nice: true },
+                        }}
+                        style={{ lineWidth: 2 }}
+                        axis={{
+                          x: {
+                            title: false,
+                            labelFormatter: (v) => {
+                              const d = new Date(v)
+                              return `${d.getMonth() + 1}/${d.getDate()}`
+                            },
+                          },
+                          y: {
+                            title: false,
+                            labelFormatter: (v) => `${v.toFixed(2)}`,
+                          },
+                        }}
+                        legend={{ color: { position: 'top', layout: { justifyContent: 'flex-end' } } }}
+                        tooltip={{
+                          items: [
+                            { field: 'value', name: '相對淨值', valueFormatter: (v) => Number(v).toFixed(3) },
+                          ],
+                        }}
+                        height={170}
+                        autoFit={true}
+                      />
+                    </div>
+                  )}
                 </div>
               </Card>
 
@@ -488,7 +692,113 @@ const Dashboard = () => {
                 </Card>
               </div>
 
-              {/* ══════ ⑤ 交易習慣分析 ══════ */}
+              {/* ══════ ⑤ 風險單位（R） ══════ */}
+              <Card
+                className="dashboard-section-card"
+                title={
+                  <div className="card-title-row">
+                    <SectionTitle label="風險單位（R）" />
+                    {risk && risk.rTrades > 0 && (
+                      <Tooltip
+                        title={`R = 每單位盈虧 ÷ 初始風險（進場價到停損價）。本期間 ${risk.rTrades} / ${risk.tradesTotal} 筆已平倉交易算得出 R`}
+                      >
+                        <Tag bordered={false} style={{ marginRight: 0, fontSize: 11 }}>
+                          {risk.rTrades} / {risk.tradesTotal} 筆可計算
+                        </Tag>
+                      </Tooltip>
+                    )}
+                  </div>
+                }
+                styles={{ body: { padding: '16px' } }}
+              >
+                {!risk || risk.rTrades === 0 ? (
+                  <div className="risk-empty">
+                    <div className="text-body">
+                      本期間 {risk?.tradesTotal || 0} 筆已平倉交易，只有 {risk?.tradesWithStop || 0} 筆設定了停損
+                      （設定率{' '}
+                      {risk?.tradesTotal ? ((risk.tradesWithStop / risk.tradesTotal) * 100).toFixed(0) : 0}%），算不出 R。
+                    </div>
+                    <div className="text-hint">
+                      停損設定率本身就是紀律指標：沒有停損的交易，虧損沒有上限。填了停損價，才會多出 R 值、R 分布與停損遵守率。
+                    </div>
+                    <Button size="small" onClick={() => navigate('/trades')}>
+                      前往交易頁補上停損價
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="perf-kpi-row">
+                      <MetricCell
+                        label="平均 R"
+                        hint="每筆交易平均賺賠幾個 R。1R = 進場價到停損價的距離"
+                        value={<>{risk.avgR > 0 ? '+' : ''}{risk.avgR.toFixed(2)}<span className="mc-unit text-hint">R</span></>}
+                        color={pnlColor(risk.avgR)}
+                      />
+                      <MetricCell
+                        label="中位數 R"
+                        hint={`${risk.rTrades} 筆的中位數。平均數容易被一兩筆大獲利拉高，中位數看的是「典型的一筆」`}
+                        value={<>{risk.medianR > 0 ? '+' : ''}{risk.medianR.toFixed(2)}<span className="mc-unit text-hint">R</span></>}
+                        color={pnlColor(risk.medianR)}
+                      />
+                      <MetricCell
+                        label="停損遵守率"
+                        hint={`R ≥ −1 的比例：${risk.rTrades - (risk.stopBreaches || 0)} / ${risk.rTrades} 筆。低於 −1 代表實際虧損超過原本設定的風險（停損沒執行或跳空）`}
+                        value={`${risk.stopAdherence.toFixed(1)}%`}
+                        color={risk.stopAdherence >= 80 ? CLR_UP : CLR_DOWN}
+                      />
+                      <MetricCell
+                        label="停損設定率"
+                        hint={`${risk.tradesWithStop} / ${risk.tradesTotal} 筆已平倉交易有填停損價。沒有停損的交易算不出 R，也不知道最大虧損會到哪裡`}
+                        value={`${risk.tradesTotal ? ((risk.tradesWithStop / risk.tradesTotal) * 100).toFixed(1) : 0}%`}
+                        color={risk.tradesWithStop / (risk.tradesTotal || 1) >= 0.8 ? CLR_UP : CLR_DOWN}
+                      />
+                      <MetricCell
+                        label="最好／最差"
+                        hint="本期間單筆交易的最大獲利與最大虧損，以 R 表示"
+                        value={
+                          <>
+                            <span style={{ color: CLR_UP }}>+{risk.bestR.toFixed(1)}</span>
+                            <span className="text-hint"> / </span>
+                            <span style={{ color: CLR_DOWN }}>{risk.worstR.toFixed(1)}</span>
+                            <span className="mc-unit text-hint">R</span>
+                          </>
+                        }
+                        color={CLR_NONE}
+                      />
+                    </div>
+                    <div className="risk-dist">
+                      <div className="mc-label text-hint">R 分布：每筆交易落在哪個風險區間</div>
+                      <Column
+                        data={risk.distribution}
+                        xField="label"
+                        yField="count"
+                        scale={{ y: { nice: true }, x: { padding: 0.4 } }}
+                        style={(d) => ({
+                          fill: d.key === '0-1' || d.key === '1-2' || d.key === '2-3' || d.key === 'gte3'
+                            ? CLR_UP
+                            : CLR_DOWN,
+                          fillOpacity: 0.85,
+                          radiusTopLeft: 2,
+                          radiusTopRight: 2,
+                        })}
+                        axis={{
+                          x: { title: false },
+                          y: { title: false, tickCount: 4 },
+                        }}
+                        tooltip={{
+                          items: [
+                            { field: 'count', name: '交易筆數', valueFormatter: (v) => `${v} 筆` },
+                          ],
+                        }}
+                        height={150}
+                        autoFit={true}
+                      />
+                    </div>
+                  </>
+                )}
+              </Card>
+
+              {/* ══════ ⑥ 交易習慣分析 ══════ */}
               <Card
                 className="dashboard-section-card"
                 title={<SectionTitle label="交易習慣分析" />}

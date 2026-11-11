@@ -115,6 +115,9 @@ export const tradeDTO = {
       // 未實現盈虧（僅 open trade 有值；backend 收盤後 cron 抓 close 算出）
       currentPrice: apiTrade.currentPrice != null ? parseFloat(apiTrade.currentPrice) : null,
       unrealizedPnL: apiTrade.unrealizedPnL != null ? parseFloat(apiTrade.unrealizedPnL) : null,
+
+      // R 值（已平倉且建倉時有填停損價才有；null 代表算不出來，不是 0）
+      rMultiple: apiTrade.rMultiple != null ? parseFloat(apiTrade.rMultiple) : null,
       
       // 檢討（以後端欄位為主）
       reviewNotes: apiTrade.reviewNotes || '',
