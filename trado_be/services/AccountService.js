@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import { AppError } from '../errors/index.js';
 import { FEE_RATE, MIN_FEE, TAX_RATE, DAY_TRADE_TAX_RATE } from '../utils/feeCalculator.js';
+import EquityService from './EquityService.js';
 
 class AccountService {
   /**
@@ -145,40 +146,32 @@ class AccountService {
 
   /**
    * 建立或更新某天的資產快照
+   *
+   * 持倉以「該日收盤價 × 股數」評價（mark-to-market）。舊版用 Trade.totalValue，
+   * 那其實是持倉成本，行情漲跌完全反映不到總資產上，導致總資產曲線是階梯狀、
+   * 回撤永遠為 0。評價邏輯集中在 EquityService，避免各處算法分歧。
    */
   async createOrUpdateSnapshot(userId, date) {
-    const snapshotDate = new Date(date.toISOString().slice(0, 10));
+    const isoDate = new Date(date).toISOString().slice(0, 10);
+    const snapshotDate = new Date(`${isoDate}T00:00:00.000Z`);
 
-    // 取得動態計算的現金餘額（含交易成本）
-    const cashBalance = await this._computeCashBalance(userId);
-
-    // 計算持倉市值（open trades 的 totalValue 之和）
-    const openTrades = await prisma.trade.findMany({
-      where: { userId, status: 'open' },
-      select: { totalValue: true },
-    });
-
-    const positionValue = openTrades.reduce((sum, t) => {
-      return sum + (t.totalValue ? Number(t.totalValue) : 0);
-    }, 0);
-
-    const totalAssets = cashBalance + Math.round(positionValue);
+    const valuation = await EquityService.getValuation(userId, isoDate);
 
     await prisma.balanceSnapshot.upsert({
       where: {
         userId_date: { userId, date: snapshotDate },
       },
       update: {
-        cashBalance,
-        positionValue: Math.round(positionValue),
-        totalAssets,
+        cashBalance: valuation.cashBalance,
+        positionValue: valuation.marketValue,
+        totalAssets: valuation.totalAssets,
       },
       create: {
         userId,
         date: snapshotDate,
-        cashBalance,
-        positionValue: Math.round(positionValue),
-        totalAssets,
+        cashBalance: valuation.cashBalance,
+        positionValue: valuation.marketValue,
+        totalAssets: valuation.totalAssets,
       },
     });
   }
@@ -293,83 +286,20 @@ class AccountService {
    * cashBalance = cashAdjustment + 入金 - 出金 - 買入成本(含手續費) + 賣出收入(扣手續費和稅)
    */
   async _computeCashBalance(userId) {
-    // 0. 取得用戶的 cashAdjustment（設定現金餘額時由系統計算的補正值）
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { cashAdjustment: true },
-    });
-    const cashAdjustment = user?.cashAdjustment || 0;
-
-    // 1. 出入金加總
-    const txnAgg = await prisma.accountTransaction.groupBy({
-      by: ['type'],
-      where: { userId },
-      _sum: { amount: true },
-    });
-    const deposits = txnAgg.find(a => a.type === 'deposit')?._sum.amount || 0;
-    const withdrawals = txnAgg.find(a => a.type === 'withdraw')?._sum.amount || 0;
-
-    // 2. 交易成本加總（Prisma groupBy 不支援 shares*price，用 raw SQL）
-    const tradeCosts = await prisma.$queryRaw`
-      SELECT
-        pa.action,
-        COALESCE(SUM(pa.shares * pa.price), 0) AS "grossAmount",
-        COALESCE(SUM(pa.fee), 0) AS "totalFee",
-        COALESCE(SUM(pa.tax), 0) AS "totalTax"
-      FROM "PositionAdjustment" pa
-      JOIN "Trade" t ON pa."tradeId" = t.id
-      WHERE t."userId" = ${userId} AND pa."deletedAt" IS NULL
-      GROUP BY pa.action
-    `;
-
-    let buyCost = 0;
-    let sellProceeds = 0;
-    for (const row of tradeCosts) {
-      const gross = Number(row.grossAmount);
-      const fee = Number(row.totalFee);
-      const tax = Number(row.totalTax);
-      if (row.action === 'buy') buyCost = gross + fee;
-      if (row.action === 'sell') sellProceeds = gross - fee - tax;
-    }
-
-    return Math.round(cashAdjustment + deposits - withdrawals - buyCost + sellProceeds);
+    // 公式集中在 EquityService.computeCash，避免現金計算出現兩份會各自漂移的實作
+    return EquityService.computeCash(userId);
   }
 
   /**
    * 計算不含 cashAdjustment 的原始現金值（內部用，設定現金時反算 adjustment）
    */
   async _computeRawCashBalance(userId) {
-    const txnAgg = await prisma.accountTransaction.groupBy({
-      by: ['type'],
-      where: { userId },
-      _sum: { amount: true },
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { cashAdjustment: true },
     });
-    const deposits = txnAgg.find(a => a.type === 'deposit')?._sum.amount || 0;
-    const withdrawals = txnAgg.find(a => a.type === 'withdraw')?._sum.amount || 0;
-
-    const tradeCosts = await prisma.$queryRaw`
-      SELECT
-        pa.action,
-        COALESCE(SUM(pa.shares * pa.price), 0) AS "grossAmount",
-        COALESCE(SUM(pa.fee), 0) AS "totalFee",
-        COALESCE(SUM(pa.tax), 0) AS "totalTax"
-      FROM "PositionAdjustment" pa
-      JOIN "Trade" t ON pa."tradeId" = t.id
-      WHERE t."userId" = ${userId} AND pa."deletedAt" IS NULL
-      GROUP BY pa.action
-    `;
-
-    let buyCost = 0;
-    let sellProceeds = 0;
-    for (const row of tradeCosts) {
-      const gross = Number(row.grossAmount);
-      const fee = Number(row.totalFee);
-      const tax = Number(row.totalTax);
-      if (row.action === 'buy') buyCost = gross + fee;
-      if (row.action === 'sell') sellProceeds = gross - fee - tax;
-    }
-
-    return Math.round(deposits - withdrawals - buyCost + sellProceeds);
+    const total = await EquityService.computeCash(userId);
+    return total - Math.round(user?.cashAdjustment || 0);
   }
 }
 

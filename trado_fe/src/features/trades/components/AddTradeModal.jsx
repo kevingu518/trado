@@ -1,7 +1,7 @@
 // src/features/trades/components/AddTradeModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Modal, Form, Input, Select, DatePicker, InputNumber, Button, Space, message, Segmented, Switch } from 'antd'
-import { PlusOutlined, EditOutlined } from '@ant-design/icons'
+import { Modal, Form, Input, Select, DatePicker, InputNumber, Button, Space, message, Segmented, Switch, Tooltip } from 'antd'
+import { PlusOutlined, EditOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useStrategies } from '@/features/strategies/hooks/useStrategies'
 import CategoryTag from '@/features/stockCategories/components/CategoryTag'
@@ -416,7 +416,14 @@ const AddTradeModal = ({
 
             <div className='useBetween gap-md'>
               <Form.Item
-                label={<>停損價 <span className='optional-tag'>選填</span></>}
+                label={
+                  <span className='useCenter gap-xs'>
+                    停損價 <span className='optional-tag'>選填</span>
+                    <Tooltip title="填了才能算 R 值（每單位盈虧 ÷ 進場價到停損價的距離）。儀表板用它算平均 R、R 分布與停損遵守率">
+                      <QuestionCircleOutlined style={{ color: '#999' }} />
+                    </Tooltip>
+                  </span>
+                }
                 name="positionStopLoss"
                 className='flex-1'
                 rules={[
@@ -424,7 +431,7 @@ const AddTradeModal = ({
                 ]}
               >
                 <InputNumber
-                  placeholder="觸發停損的價格"
+                  placeholder="例：進場 100、停損 95 → 1R = 5 元"
                   style={{ width: '100%', borderRadius: '4px' }}
                   min={0}
                   precision={2}

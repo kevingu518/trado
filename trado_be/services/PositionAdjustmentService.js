@@ -2,6 +2,7 @@ import prisma from '../config/database.js';
 import { NotFoundError, AppError } from '../errors/index.js';
 import tradeService from './TradeService.js';
 import { calculateFee, calculateTax } from '../utils/feeCalculator.js';
+import { buildFingerprint } from '../utils/tradeFields.js';
 
 class PositionAdjustmentService {
   /**
@@ -127,6 +128,13 @@ class PositionAdjustmentService {
       data: {
         ...processedData,
         tradeId,
+        fingerprint: buildFingerprint({
+          timestamp: processedData.timestamp,
+          symbol: trade.symbol,
+          action: processedData.action,
+          shares: processedData.shares,
+          price: processedData.price,
+        }),
       },
     });
 
@@ -196,6 +204,25 @@ class PositionAdjustmentService {
       const newPrice = processedData.price ?? adjustment.price;
       const isDayTrade = processedData.isDayTrade ?? adjustment.isDayTrade;
       processedData.tax = calculateTax(newShares, newPrice, isDayTrade);
+    }
+
+    // 指紋涵蓋日期／代號／動作／股數／價格。代號綁在 Trade 上不會在這裡改到，
+    // 其餘四個只要動到一個就必須重算，否則去重會拿舊指紋比對，
+    // 「匯出 → 再匯入」就會把改過的那筆當成新資料重複寫入。
+    const identityChanged =
+      processedData.timestamp !== undefined ||
+      processedData.action !== undefined ||
+      processedData.shares !== undefined ||
+      processedData.price !== undefined;
+
+    if (identityChanged) {
+      processedData.fingerprint = buildFingerprint({
+        timestamp: processedData.timestamp ?? adjustment.timestamp,
+        symbol: adjustment.trade.symbol,
+        action,
+        shares: processedData.shares ?? adjustment.shares,
+        price: processedData.price ?? adjustment.price,
+      });
     }
 
     const updatedAdjustment = await prisma.positionAdjustment.update({

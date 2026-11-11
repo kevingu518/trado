@@ -48,6 +48,7 @@ const buildIndexDistribution = (trades) => {
 // ── hook ─────────────────────────────────────────────────
 export const useDashboard = () => {
   const [periodRange, setPeriodRange] = useState('month')
+  const [benchmark, setBenchmark]     = useState('TAIEX')
   const [account, setAccount]       = useState(null)
   const [performance, setPerformance] = useState(null)
   const [strategies, setStrategies]   = useState([])
@@ -55,9 +56,9 @@ export const useDashboard = () => {
   const [discipline, setDiscipline]   = useState(null)
   const [loading, setLoading]         = useState(false)
 
-  const fetchData = useCallback(async (period) => {
+  const fetchData = useCallback(async (period, bench) => {
     setLoading(true)
-    const [err, data] = await to(dashboardService.fetchDashboard(period))
+    const [err, data] = await to(dashboardService.fetchDashboard(period, bench))
     if (err) {
       message.error(err.msg || '載入儀表板失敗')
       setLoading(false)
@@ -72,8 +73,8 @@ export const useDashboard = () => {
   }, [])
 
   useEffect(() => {
-    fetchData(periodRange)
-  }, [periodRange, fetchData])
+    fetchData(periodRange, benchmark)
+  }, [periodRange, benchmark, fetchData])
 
   // ── derived data ────────────────────────────────────────
   const perfDiff = performance
@@ -106,10 +107,31 @@ export const useDashboard = () => {
   const indexDist     = useMemo(() => buildIndexDistribution(trades), [trades])
   const weeklyTrades  = useMemo(() => buildWeeklyTradeCount(trades), [trades])
 
+  /**
+   * 淨值曲線：我的 TWR 指數 vs 基準
+   * 基準是價格指數（TAIEX 三萬多點、0050 幾十元），不能直接畫在同一軸，
+   * 所以兩條都除以各自第一筆收盤價，起點都是 1.0，看的是相對成長而非絕對點位。
+   */
+  const perfCurveData = useMemo(() => {
+    const series = performance?.series || []
+    if (series.length < 2) return []
+    const firstBench = series.find(d => d.benchmarkClose != null)?.benchmarkClose
+    const out = []
+    series.forEach(d => {
+      out.push({ date: new Date(d.date), value: d.twrIndex, series: '我的淨值' })
+      if (firstBench && d.benchmarkClose != null) {
+        out.push({ date: new Date(d.date), value: d.benchmarkClose / firstBench, series: '基準' })
+      }
+    })
+    return out
+  }, [performance])
+
   return {
     // state
     periodRange,
     setPeriodRange,
+    benchmark,
+    setBenchmark,
     loading,
     // data
     account,
@@ -128,6 +150,7 @@ export const useDashboard = () => {
     // chart data
     indexDist,
     weeklyTrades,
+    perfCurveData,
     // actions
     refetch: () => fetchData(periodRange),
   }

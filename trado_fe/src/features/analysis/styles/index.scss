@@ -1,0 +1,140 @@
+@import '../../../styles/variables';
+
+.Analysis {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  // ── 頂部：標題 + 區間 / 基準切換 ───────────────
+  &-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 4px 4px 0;
+    flex-wrap: wrap;
+  }
+
+  &-header-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  // ── 卡片 ────────────────────────────────────────
+  &-card {
+    &.ant-card {
+      border-radius: 8px !important;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 1px 4px var(--shadow);
+    }
+    .ant-card-head {
+      border-bottom: 1px solid var(--border-color);
+      min-height: 44px;
+    }
+    .ant-card-head-title {
+      padding: 10px 0;
+    }
+  }
+
+  .mc-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  // ── 指標格 ──────────────────────────────────────
+  &-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px 12px;
+  }
+
+  &-kpi-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  &-kpi-value {
+    font-size: 20px;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+
+  // ── 圖表 ────────────────────────────────────────
+  &-curve {
+    width: 100%;
+  }
+
+  // 滾動指標三張圖：夠寬時並排，窄時自動疊成一欄
+  &-rolling-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  // ── 月報酬熱圖 ──────────────────────────────────
+  &-heatmap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-x: auto;
+  }
+
+  &-heatmap-row {
+    display: grid;
+    grid-template-columns: 48px repeat(12, minmax(46px, 1fr)) 72px;
+    gap: 4px;
+    align-items: center;
+  }
+
+  &-heatmap-head {
+    .hm-cell {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+  }
+
+  .hm-year {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hm-cell {
+    font-size: 12px;
+    text-align: center;
+    line-height: 1;
+    padding: 8px 0;
+    border-radius: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hm-value {
+    cursor: default;
+    transition: filter 0.15s ease;
+
+    &:hover {
+      filter: brightness(0.95) saturate(1.2);
+    }
+  }
+
+  .hm-total {
+    font-weight: 600;
+  }
+}

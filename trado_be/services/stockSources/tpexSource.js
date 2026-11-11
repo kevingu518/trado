@@ -63,3 +63,52 @@ export const fetchTpexMonth = async (symbol, yyyymmdd) => {
   const rows = raw.map(parseRow).filter(Boolean);
   return { found: rows.length > 0, rows };
 };
+
+/**
+ * 上櫃除權除息（僅當日）
+ * Endpoint: https://www.tpex.org.tw/openapi/v1/tpex_exright_daily
+ *  - 櫃買中心的 OpenAPI 只提供「當日」除權息，沒有日期區間參數，
+ *    所以上櫃的歷史還原係數無法回補，只能從上線日起每天抓一次慢慢累積
+ *  - Date 是民國年無斜線："1151105"
+ */
+const EX_RIGHT_DAILY_ENDPOINT = 'https://www.tpex.org.tw/openapi/v1/tpex_exright_daily';
+
+// "1151105" → "2026-11-05"
+const parseRocCompact = (s) => {
+  const v = String(s || '').trim();
+  if (!/^\d{7}$/.test(v)) return null;
+  const y = parseInt(v.slice(0, 3), 10);
+  if (isNaN(y)) return null;
+  return `${1911 + y}-${v.slice(3, 5)}-${v.slice(5, 7)}`;
+};
+
+/**
+ * @returns {Promise<Array<{symbol, exDate, preClose, refPrice, kind, cashDividend, stockRatio}>>}
+ */
+export const fetchTpexExRightToday = async () => {
+  const res = await fetch(EX_RIGHT_DAILY_ENDPOINT, { headers: { Accept: 'application/json' } });
+  if (!res.ok) {
+    throw new Error(`TPEX exRight ${res.status} ${res.statusText}`);
+  }
+  const list = await res.json();
+  if (!Array.isArray(list)) return [];
+
+  return list
+    .map((r) => {
+      const exDate = parseRocCompact(r.Date);
+      const symbol = String(r.SecuritiesCompanyCode || '').trim();
+      const preClose = num(r.ClosePriceBeforeExRightsDiviend);
+      const refPrice = num(r.ExRightsDiviendQuote);
+      if (!exDate || !symbol || preClose <= 0 || refPrice <= 0) return null;
+      return {
+        symbol,
+        exDate,
+        preClose,
+        refPrice,
+        kind: String(r.ExRightsDiviend || '').replace(/^除/, '').trim() || '息',
+        cashDividend: num(r.CashDividend) || null,
+        stockRatio: num(r.StockDividend) || null,
+      };
+    })
+    .filter(Boolean);
+};

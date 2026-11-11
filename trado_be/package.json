@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.106.0",
     "@prisma/client": "^5.19.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -26,7 +27,9 @@
     "jsonwebtoken": "^9.0.3",
     "jwt-decode": "^4.0.0",
     "node-cron": "^4.2.1",
-    "prisma": "^5.19.1"
+    "openai": "^6.45.0",
+    "prisma": "^5.19.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

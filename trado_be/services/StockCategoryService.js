@@ -419,9 +419,15 @@ class StockCategoryService {
    *    只會出現在 current。
    * 佔比分母：該快照「總持倉成本」（不含現金）。無 mapping 的 symbol 歸「未分類」。
    *
+   * current 另含市值欄位（previous 為歷史日，無歷史收盤價故不附）：
+   *  - snapshot.totalMarketValue / totalValuedCost
+   *  - category.marketValue / marketRatio / valuedCost
+   *  marketRatio 以「有報價部位的市值合計」為分母；valuedCost 為這些部位的成本，
+   *  供前端算浮盈虧 =（marketValue − valuedCost）/ valuedCost。
+   *
    * @returns {Promise<{
    *   previous: { date: string|null, totalCost: number, categories: [...], unclassified: {...} } | null,
-   *   current:  { date: string|null, totalCost: number, categories: [...], unclassified: {...} },
+   *   current:  { date: string|null, totalCost: number, totalMarketValue: number, categories: [...], unclassified: {...} },
    * }>}
    */
   async getAllocationFlow(userId) {
@@ -455,11 +461,28 @@ class StockCategoryService {
 
     // current 持倉成本：以 open trades 的 totalShares × avgPrice（與族群配置同源）
     const currentSymbolCost = new Map();
+    const currentSymbolShares = new Map();
     for (const t of openTrades) {
       const shares = t.totalShares || 0;
       const avg = t.avgPrice != null ? Number(t.avgPrice) : 0;
       if (shares > 0 && avg > 0) {
         currentSymbolCost.set(t.symbol, (currentSymbolCost.get(t.symbol) || 0) + shares * avg);
+        currentSymbolShares.set(t.symbol, (currentSymbolShares.get(t.symbol) || 0) + shares);
+      }
+    }
+
+    // current 市值：對上面同一批 symbol 取最新收盤價（與族群配置同源）。
+    // 只有「拿得到報價」的 symbol 才會進入市值統計，浮盈虧也只以這批的成本為基準，
+    // 避免缺價的部位把市值佔比/浮盈虧算歪。
+    const heldSymbols = [...currentSymbolShares.keys()];
+    const latestPrices = heldSymbols.length > 0
+      ? await stockPriceService.getLatest(heldSymbols)
+      : {};
+    const currentSymbolValue = new Map();
+    for (const [symbol, shares] of currentSymbolShares) {
+      const price = latestPrices[symbol]?.close ?? null;
+      if (price !== null) {
+        currentSymbolValue.set(symbol, Math.round(shares * price));
       }
     }
 
@@ -509,44 +532,83 @@ class StockCategoryService {
     const mappingBySymbol = new Map(mappings.map((m) => [m.symbol, m.categoryId]));
     const categoryById = new Map(categories.map((c) => [c.id, c]));
 
-    // 把 symbol->cost 分桶成族群快照
-    const buildSnapshot = (dateKey, symbolCost) => {
+    // 把 symbol->cost 分桶成族群快照。
+    // symbolValue 有給時（僅 current），同時統計各族群市值與「有報價部位」的成本基礎
+    // （valuedCost），供前端算市值佔比與浮盈虧。
+    const buildSnapshot = (dateKey, symbolCost, symbolValue = null) => {
       const byCategory = new Map(); // categoryId -> cost
+      const byCategoryValue = new Map(); // categoryId -> { mv, valuedCost }
       let unclassifiedCost = 0;
+      let unclassifiedValue = 0;
+      let unclassifiedValuedCost = 0;
       let totalCost = 0;
+      let totalMarketValue = 0;
+      let totalValuedCost = 0;
       for (const [symbol, cost] of symbolCost) {
         const rounded = Math.round(cost);
         totalCost += rounded;
+        const hasPrice = symbolValue ? symbolValue.has(symbol) : false;
+        const mv = hasPrice ? symbolValue.get(symbol) : 0;
+        if (hasPrice) {
+          totalMarketValue += mv;
+          totalValuedCost += rounded;
+        }
         const catId = mappingBySymbol.get(symbol);
         if (catId && categoryById.has(catId)) {
           byCategory.set(catId, (byCategory.get(catId) || 0) + rounded);
+          if (hasPrice) {
+            const v = byCategoryValue.get(catId) || { mv: 0, valuedCost: 0 };
+            v.mv += mv;
+            v.valuedCost += rounded;
+            byCategoryValue.set(catId, v);
+          }
         } else {
           unclassifiedCost += rounded;
+          if (hasPrice) {
+            unclassifiedValue += mv;
+            unclassifiedValuedCost += rounded;
+          }
         }
       }
       const denom = totalCost > 0 ? totalCost : 1;
+      const valDenom = totalMarketValue > 0 ? totalMarketValue : 1;
       const cats = [];
       for (const c of categories) {
         const cost = byCategory.get(c.id) || 0;
         if (cost <= 0) continue;
-        cats.push({
+        const cat = {
           id: c.id,
           name: c.name,
           color: c.color,
           isStandby: c.isStandby,
           cost,
           ratio: cost / denom,
-        });
+        };
+        if (symbolValue) {
+          const v = byCategoryValue.get(c.id) || { mv: 0, valuedCost: 0 };
+          cat.marketValue = v.mv;
+          cat.valuedCost = v.valuedCost;
+          cat.marketRatio = v.mv / valDenom;
+        }
+        cats.push(cat);
       }
-      return {
+      const snap = {
         date: dateKey,
         totalCost,
         categories: cats,
         unclassified: { cost: unclassifiedCost, ratio: unclassifiedCost / denom },
       };
+      if (symbolValue) {
+        snap.totalMarketValue = totalMarketValue;
+        snap.totalValuedCost = totalValuedCost;
+        snap.unclassified.marketValue = unclassifiedValue;
+        snap.unclassified.valuedCost = unclassifiedValuedCost;
+        snap.unclassified.marketRatio = unclassifiedValue / valDenom;
+      }
+      return snap;
     };
 
-    const current = buildSnapshot(d1, currentSymbolCost);
+    const current = buildSnapshot(d1, currentSymbolCost, currentSymbolValue);
     const previous = d0 ? buildSnapshot(d0, snapshotCostBySymbol(endOf(d0))) : null;
 
     // rotation：最新交易日 D1 當天，依族群分桶的賣出 / 買進「成交額」（shares × price），

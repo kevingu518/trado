@@ -4,6 +4,19 @@ import AccountService from './AccountService.js';
 import StockPriceService from './StockPriceService.js';
 import strategyService from './StrategyService.js';
 import { calculateFee, calculateTax } from '../utils/feeCalculator.js';
+import { buildTradeWhere, buildTradeOrderBy } from '../utils/tradeFilter.js';
+import { buildFingerprint } from '../utils/tradeFields.js';
+import { computeTradeR } from './RiskService.js';
+
+/**
+ * 已平倉交易才給 R 值：R 需要「出場均價」才成立，
+ * 未平倉的浮動 R 語意不同（還沒實現），不要混在同一個欄位。
+ */
+const attachRMultiple = (trade) => {
+  if (trade.status !== 'closed') return { ...trade, rMultiple: null };
+  const r = computeTradeR(trade.direction, trade.positionAdjustments || []);
+  return { ...trade, rMultiple: r == null ? null : Number(r.toFixed(2)) };
+};
 
 /**
  * 對一批 trades 加上 currentPrice / unrealizedPnL
@@ -64,45 +77,18 @@ class TradeService {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20)); // 最多 100 筆
     const skip = (pageNum - 1) * limitNum;
 
-    // 處理日期範圍
-    const dateFilter = {};
-    if (startDate) {
-      // 如果只有日期（YYYY-MM-DD），補上時間部分為當天開始（00:00:00）
-      const start = startDate.includes('T') 
-        ? new Date(startDate) 
-        : new Date(startDate + 'T00:00:00.000Z');
-      dateFilter.gte = start;
-    }
-    if (endDate) {
-      // 如果只有日期（YYYY-MM-DD），補上時間部分為當天結束（23:59:59.999）
-      const end = endDate.includes('T')
-        ? new Date(endDate)
-        : new Date(endDate + 'T23:59:59.999Z');
-      dateFilter.lte = end;
-    }
-
-    // 建立 where 條件
-    const where = {
-      userId,
-      ...(status && { status }),
-      ...(symbol && { symbol }),
-      ...(direction && ['long', 'short'].includes(direction) && { direction }),
-      ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
-      // 策略篩選：同時涵蓋 Trade.strategyId（直接綁定）與 TradeStrategy 關聯表
-      ...(strategy && {
-        OR: [
-          { strategyId: strategy },
-          { strategies: { some: { strategyId: strategy } } },
-        ],
-      }),
-    };
+    // 建立 where 條件（與匯出共用 utils/tradeFilter.js，避免清單與匯出檔不一致）
+    const where = buildTradeWhere(userId, {
+      status,
+      symbol,
+      direction,
+      startDate,
+      endDate,
+      strategy,
+    });
 
     // 建立排序條件
-    const orderBy = {};
-    const validSortFields = ['createdAt', 'updatedAt', 'closedAt', 'symbol', 'status'];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    const order = sortOrder.toLowerCase() === 'asc' ? 'asc' : 'desc';
-    orderBy[sortField] = order;
+    const orderBy = buildTradeOrderBy(sortBy, sortOrder);
 
     // 並行查詢：取得資料和總數
     const [trades, total] = await Promise.all([
@@ -144,11 +130,11 @@ class TradeService {
       // 移除原始的 strategy 關聯，避免混淆
       const { strategy: _, ...tradeWithoutStrategy } = trade;
 
-      return {
+      return attachRMultiple({
         ...tradeWithoutStrategy,
         // entryCount 和 holdingDuration 已經從資料庫讀取，直接使用
         strategy,
-      };
+      });
     });
 
     // 對 open trades 補上 currentPrice / unrealizedPnL（純 DB read，不會觸發外部 API）
@@ -201,7 +187,7 @@ class TradeService {
     }
 
     const [enriched] = await enrichWithCurrentPrice([trade]);
-    return enriched;
+    return attachRMultiple(enriched);
   }
 
   async createTrade(data, userId) {
@@ -326,7 +312,18 @@ class TradeService {
 
       if (positionPayload) {
         await tx.positionAdjustment.create({
-          data: { ...positionPayload, tradeId: created.id },
+          data: {
+            ...positionPayload,
+            tradeId: created.id,
+            // 手動開單的第一筆也要有指紋，否則匯出後再匯入會認不出它（TD-112 匯出#2）
+            fingerprint: buildFingerprint({
+              timestamp: positionPayload.timestamp,
+              symbol: tradeData.symbol,
+              action: positionPayload.action,
+              shares: positionPayload.shares,
+              price: positionPayload.price,
+            }),
+          },
         });
       }
 

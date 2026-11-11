@@ -1,4 +1,5 @@
 import request from './request';
+import { rawRequest } from './rawRequest';
 
 /**
  * 交易相關 API
@@ -22,6 +23,23 @@ export const updateTradeApi = (tradeId, data) => request.put(`/trades/${tradeId}
 
 // Delete - 刪除交易
 export const deleteTradeApi = (tradeId) => request.delete(`/trades/${tradeId}`)
+
+// Read - 匯出 CSV（套用與列表相同的 filter）
+// 走原生 fetch：要讀 Content-Disposition 的檔名與 X-Row-Count（後端以
+// exposedHeaders 曝光），axios 的攔截器只會回傳 data，header 拿不到。
+export const exportTradesApi = async (params = {}) => {
+  const res = await rawRequest('/trades/export', { query: params })
+
+  // attachment; filename="trades-2026-09-29.csv"
+  const disposition = res.headers.get('Content-Disposition') || ''
+  const filename = /filename="?([^";]+)"?/.exec(disposition)?.[1] || 'trades.csv'
+
+  return {
+    blob: await res.blob(),
+    filename,
+    rowCount: Number(res.headers.get('X-Row-Count')) || 0,
+  }
+}
 
 // ========== Position (倉位) 相關 API ==========
 

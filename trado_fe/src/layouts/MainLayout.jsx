@@ -26,14 +26,19 @@ import PerfectScrollbar from 'react-perfect-scrollbar';
 
 const items = [
   {
-    key: '1',
-    icon: <HighlightOutlined />,
-    label: '交易紀錄',
-  },
-  {
     key: '2',
     icon: <DashboardOutlined />,
     label: '儀表板',
+  },
+  {
+    key: '8',
+    icon: <LineChartOutlined />,
+    label: '分析',
+  },
+  {
+    key: '1',
+    icon: <HighlightOutlined />,
+    label: '交易紀錄',
   },
   {
     key: '3',
@@ -55,11 +60,11 @@ const items = [
 // 路由到選單 key 的映射
 const pathToKeyMap = {
   '/trades': '1',
-  '/transactions': '1', // transactions 也對應交易紀錄
   '/dashboard': '2',
   '/strategy': '3',
   '/stock-categories': '7',
   '/settings': '4',
+  '/analysis': '8',
 };
 
 // 選單 key 到路由的映射
@@ -69,6 +74,7 @@ const keyToPathMap = {
   '3': '/strategy',
   '7': '/stock-categories',
   '4': '/settings',
+  '8': '/analysis',
 };
 
 const MainLayout = () => {

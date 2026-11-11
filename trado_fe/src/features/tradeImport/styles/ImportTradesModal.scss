@@ -1,0 +1,114 @@
+/* TD-112 匯入精靈 */
+
+.import-trades-modal {
+  .ant-modal-body {
+    min-height: 380px;
+  }
+
+  /* 上傳區：虛線框，點按鈕或整塊都能選檔 */
+  .import-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 28px 16px;
+    border: 1px dashed var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-secondary);
+    cursor: pointer;
+    transition: border-color 0.2s;
+
+    &:hover {
+      border-color: var(--color-primary, var(--text-secondary));
+    }
+
+    .import-dropzone-icon {
+      font-size: 26px;
+      color: var(--text-secondary);
+    }
+
+    .import-dropzone-hint {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+  }
+
+  .import-file-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  /* 欄位對應：左邊系統欄位、右邊檔案欄位 */
+  .import-mapping-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .import-mapping-field {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      .import-mapping-label {
+        font-size: 13px;
+        color: var(--text-primary);
+      }
+
+      .import-mapping-desc {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+    }
+  }
+
+  .import-required-mark {
+    color: var(--color-down);
+    margin-left: 2px;
+  }
+
+  .import-summary {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 8px 0 12px;
+  }
+
+  .import-muted {
+    color: var(--text-secondary);
+  }
+
+  /* 問題列整列淡紅底，讓使用者一眼掃到 */
+  .import-row-invalid > td {
+    background-color: rgba(255, 77, 79, 0.08) !important;
+  }
+
+  .import-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 32px 0;
+
+    .import-result-icon {
+      font-size: 40px;
+      color: var(--color-up);
+    }
+
+    .import-result-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import tradeService from '../services/TradeService.js';
 import positionAdjustmentService from '../services/PositionAdjustmentService.js';
 import dailyPositionService from '../services/DailyPositionService.js';
+import tradeExportService from '../services/TradeExportService.js';
 
 class TradeController {
   // 使用箭頭函數，自動綁定 this，不需要 .bind()
@@ -78,11 +79,32 @@ class TradeController {
     const { id } = req.params;
     const userId = req.user.id;
     const trade = await tradeService.getTradeById(id, userId);
-    
+
     res.json({
       success: true,
       data: trade,
     });
+  };
+
+  // 匯出 CSV：套用與列表相同的 filter，格式與匯入的系統欄位一致（可再匯入）
+  exportTrades = async (req, res) => {
+    const userId = req.user.id;
+    const { status, symbol, direction, startDate, endDate, strategy } = req.query;
+
+    const { filename, content, rowCount } = await tradeExportService.exportCsv(userId, {
+      status,
+      symbol,
+      direction,
+      startDate,
+      endDate,
+      strategy,
+    });
+
+    // 前端以 fetch + blob 下載，檔名與筆數要放在 header 才讀得到
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('X-Row-Count', String(rowCount));
+    res.send(content);
   };
 
   createTrade = async (req, res) => {

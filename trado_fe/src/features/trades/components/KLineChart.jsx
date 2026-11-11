@@ -226,8 +226,15 @@ const KLineChart = ({
 
     window.addEventListener('resize', handleResize)
 
+    // 滾輪用來縮放 K 線時，阻止事件冒泡到外層 PerfectScrollbar
+    // （否則縮放會變成捲動整個倉位面板）
+    const containerEl = chartContainerRef.current
+    const stopWheelPropagation = (e) => e.stopPropagation()
+    containerEl.addEventListener('wheel', stopWheelPropagation, { passive: true })
+
     return () => {
       window.removeEventListener('resize', handleResize)
+      containerEl.removeEventListener('wheel', stopWheelPropagation)
       if (chartRef.current) {
         chartRef.current.remove()
       }
