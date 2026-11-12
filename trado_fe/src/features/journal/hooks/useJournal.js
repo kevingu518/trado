@@ -30,7 +30,7 @@ export const useJournal = () => {
 
   const [activeDate, setActiveDate] = useState(todayIso)
   const [context, setContext] = useState(null)
-  const [contextLoading, setContextLoading] = useState(false)
+  const [contextLoading, setContextLoading] = useState(true)
   const [entries, setEntries] = useState([])
   const [kline, setKline] = useState([])
   const [loading, setLoading] = useState(true)

@@ -27,6 +27,11 @@ const Journal = () => {
   const listRef = useRef(null)
   const formRef = useRef(null)
 
+  // 切換日期時 context 還是前一天的；對不上就當作沒資料，避免表單短暫顯示別天的內容
+  const contextStale = !!context && context.tradeDate !== activeDate
+  const activeContext = contextStale ? null : context
+  const contextLoadingOrStale = contextLoading || contextStale
+
   const handleEdit = (date) => {
     setActiveDate(date)
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -43,8 +48,8 @@ const Journal = () => {
         <MarketStrip
           date={activeDate}
           isToday={activeDate === todayIso}
-          context={context}
-          loading={contextLoading}
+          context={activeContext}
+          loading={contextLoadingOrStale}
         />
         <MarketChart
           rows={kline}
@@ -59,8 +64,8 @@ const Journal = () => {
           <JournalForm
             date={activeDate}
             todayIso={todayIso}
-            context={context}
-            loading={contextLoading}
+            context={activeContext}
+            loading={contextLoadingOrStale}
             saving={saving}
             onSave={saveEntry}
             onBackToToday={() => setActiveDate(todayIso)}
