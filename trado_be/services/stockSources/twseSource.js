@@ -12,10 +12,12 @@ const ENDPOINT = 'https://www.twse.com.tw/exchangeReport/STOCK_DAY';
  * TAIEX（發行量加權股價指數）
  * Endpoint: https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK
  *  - 一次回整個月的「市場成交資訊」，沒有 stockNo 參數
+ *  - 第 2 欄（index 1）成交股數、第 3 欄（index 2）成交金額
  *  - 第 5 欄（index 4）是當日收盤指數
  *  - 只提供收盤值，沒有 OHLC：open/high/low 一律帶入收盤，
  *    避免下游拿到 0 而算出假的振幅
- *  - volume 是全市場成交股數，不是指數本身的量，因此存 0
+ *  - volume / turnover 是「全市場」的成交股數與金額（不是指數本身的量），
+ *    盤後日誌拿來顯示當日量能，因此照存
  */
 const INDEX_ENDPOINT = 'https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK';
 
@@ -54,7 +56,15 @@ const parseIndexRow = (row) => {
   const date = parseRocDate(row[0]);
   const close = num(row[4]);
   if (!date || !close) return null;
-  return { date, open: close, high: close, low: close, close, volume: 0 };
+  return {
+    date,
+    open: close,
+    high: close,
+    low: close,
+    close,
+    volume: Math.trunc(num(row[1])),
+    turnover: Math.trunc(num(row[2])),
+  };
 };
 
 /**

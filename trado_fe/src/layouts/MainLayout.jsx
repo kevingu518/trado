@@ -11,6 +11,7 @@ import {
   ContainerOutlined,
   HighlightOutlined,
   TagsOutlined,
+  ReadOutlined,
 } from '@ant-design/icons';
 import { FaRegUser } from "react-icons/fa";
 import { logout } from '../api/api_user';
@@ -34,6 +35,11 @@ const items = [
     key: '8',
     icon: <LineChartOutlined />,
     label: '分析',
+  },
+  {
+    key: '9',
+    icon: <ReadOutlined />,
+    label: '盤後',
   },
   {
     key: '1',
@@ -65,6 +71,7 @@ const pathToKeyMap = {
   '/stock-categories': '7',
   '/settings': '4',
   '/analysis': '8',
+  '/journal': '9',
 };
 
 // 選單 key 到路由的映射
@@ -75,6 +82,7 @@ const keyToPathMap = {
   '7': '/stock-categories',
   '4': '/settings',
   '8': '/analysis',
+  '9': '/journal',
 };
 
 const MainLayout = () => {
