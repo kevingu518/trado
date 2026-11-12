@@ -1,9 +1,8 @@
 @import '../../../styles/variables';
 
 .Journal {
-  padding: 8px 12px;
-  max-width: 1440px; /* 不滿版：左右兩欄收在舒服的閱讀寬度 */
-  margin: 0 auto;
+  /* 版面比照風險中心／交易紀錄：12px 頁面留白、4px 圓角面板 */
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -13,7 +12,6 @@
     align-items: baseline;
     gap: 12px;
     flex-wrap: wrap;
-    padding: 4px 4px 0;
   }
 
   /* 左邊日誌、右邊走勢圖 */
@@ -40,9 +38,14 @@
 
 .journal-card {
   &.ant-card {
-    border-radius: 8px !important;
+    border-radius: 4px;
     border: 1px solid var(--border-color);
-    box-shadow: 0 1px 4px var(--shadow);
+    box-shadow: none;
+    overflow: hidden;
+
+    > .ant-card-body {
+      padding: 12px 16px;
+    }
   }
 }
 
@@ -508,6 +511,10 @@
 @media (max-width: 768px) {
   .Journal {
     padding: 8px;
+  }
+
+  .journal-card.ant-card > .ant-card-body {
+    padding: 10px 12px;
   }
 
   .journal-strip {

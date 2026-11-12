@@ -40,7 +40,7 @@ const Journal = () => {
   return (
     <div className="Journal">
       <div className="Journal-header">
-        <span className="text-title font-bold font-serif">盤後日誌</span>
+        <span className="text-title font-serif">盤後日誌</span>
         <span className="text-hint">每天 30 秒留下多空與理由，回頭看自己的判斷</span>
       </div>
 
@@ -79,10 +79,7 @@ const Journal = () => {
 
         {/* 右：大盤走勢（滾動時固定在視窗內） */}
         <div className="Journal-col">
-          <Card
-            className="journal-card journal-chart-card"
-            styles={{ body: { padding: '10px 12px 6px' } }}
-          >
+          <Card className="journal-card journal-chart-card">
             <MarketStrip
               date={activeDate}
               isToday={activeDate === todayIso}
