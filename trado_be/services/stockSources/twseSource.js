@@ -14,12 +14,20 @@ const ENDPOINT = 'https://www.twse.com.tw/exchangeReport/STOCK_DAY';
  *  - 一次回整個月的「市場成交資訊」，沒有 stockNo 參數
  *  - 第 2 欄（index 1）成交股數、第 3 欄（index 2）成交金額
  *  - 第 5 欄（index 4）是當日收盤指數
- *  - 只提供收盤值，沒有 OHLC：open/high/low 一律帶入收盤，
- *    避免下游拿到 0 而算出假的振幅
+ *  - FMTQIK 只有收盤值；開高低收另抓 MI_5MINS_HIST 合併，
+ *    抓不到時才退回「open/high/low 帶入收盤」，避免下游拿到 0 算出假的振幅
  *  - volume / turnover 是「全市場」的成交股數與金額（不是指數本身的量），
  *    盤後日誌拿來顯示當日量能，因此照存
  */
 const INDEX_ENDPOINT = 'https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK';
+
+/**
+ * 加權指數歷史 OHLC
+ * Endpoint: https://www.twse.com.tw/indicesReport/MI_5MINS_HIST
+ *  - 一次回整個月的「日期, 開盤指數, 最高指數, 最低指數, 收盤指數」
+ *  - FMTQIK 只有收盤與全市場量能，兩邊以日期合併才是完整的一根 K 棒
+ */
+const INDEX_HIST_ENDPOINT = 'https://www.twse.com.tw/indicesReport/MI_5MINS_HIST';
 
 const num = (s) => {
   const n = parseFloat(String(s).replace(/,/g, ''));
@@ -67,6 +75,34 @@ const parseIndexRow = (row) => {
   };
 };
 
+const parseIndexHistRow = (row) => {
+  if (!Array.isArray(row) || row.length < 5) return null;
+  const date = parseRocDate(row[0]);
+  const open = num(row[1]);
+  const high = num(row[2]);
+  const low = num(row[3]);
+  const close = num(row[4]);
+  if (!date || !close) return null;
+  return { date, open, high, low, close };
+};
+
+/** 取某個月加權指數的開高低收；失敗回傳空 map，讓呼叫端退回收盤值 */
+const fetchIndexHistMap = async (yyyymmdd) => {
+  try {
+    const res = await fetch(`${INDEX_HIST_ENDPOINT}?response=json&date=${yyyymmdd}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return new Map();
+    const data = await res.json();
+    if (data.stat !== 'OK') return new Map();
+    const rows = (data.data || []).map(parseIndexHistRow).filter(Boolean);
+    return new Map(rows.map((r) => [r.date, r]));
+  } catch (err) {
+    console.warn('[twseSource] index hist fetch failed:', err.message);
+    return new Map();
+  }
+};
+
 /**
  * 取某個月的大盤加權指數收盤值
  * @param {string} yyyymmdd 該月任一天 (用來指定月份)
@@ -83,7 +119,23 @@ export const fetchTwseIndexMonth = async (yyyymmdd) => {
     return { found: false, rows: [] };
   }
   const rows = (data.data || []).map(parseIndexRow).filter(Boolean);
-  return { found: true, rows };
+
+  // 合併同月份的開高低收；沒有 OHLC 的日期就維持舊行為（open/high/low 帶入收盤），
+  // 下游看到 open===high===low===close 會知道這筆要重抓
+  const histByDate = await fetchIndexHistMap(yyyymmdd);
+  const merged = rows.map((r) => {
+    const hist = histByDate.get(r.date);
+    if (!hist) return r;
+    return {
+      ...r,
+      open: hist.open,
+      high: hist.high,
+      low: hist.low,
+      close: hist.close,
+    };
+  });
+
+  return { found: true, rows: merged };
 };
 
 /**

@@ -76,6 +76,19 @@ const ensureRangeCached = async (symbol, startIso, endIso) => {
       const m = String(r.date.getUTCMonth() + 1).padStart(2, '0');
       cachedMonths.delete(`${y}${m}`);
     }
+
+    // 更早的指數資料只有收盤值，開高低收全部帶入收盤：K 棒會變成一條細線。
+    // 這種「四價相同」的月份也視為未快取，重抓 MI_5MINS_HIST 補上真實開高低收
+    for (const r of existing) {
+      const degenerate =
+        Number(r.open) === Number(r.high) &&
+        Number(r.high) === Number(r.low) &&
+        Number(r.low) === Number(r.close);
+      if (!degenerate) continue;
+      const y = r.date.getUTCFullYear();
+      const m = String(r.date.getUTCMonth() + 1).padStart(2, '0');
+      cachedMonths.delete(`${y}${m}`);
+    }
   }
 
   // 當月資料持續變動（cron 可能漏抓當日，例如 TPEX publish 較晚），永遠視為「未 cache」
