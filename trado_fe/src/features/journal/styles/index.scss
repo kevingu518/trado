@@ -30,10 +30,11 @@
   }
 }
 
-/* 圖表跟著視窗走，往下看歷史時還看得到大盤 */
-.journal-chart-card {
+/* 右欄整欄跟著視窗走：往下翻歷史時，圖表跟所選日的日誌都留著 */
+.Journal-col--chart {
   position: sticky;
-  top: 8px;
+  top: 12px;
+  align-self: start;
 }
 
 .journal-card {
@@ -93,7 +94,8 @@
 .journal-strip-value,
 .journal-view-label,
 .journal-row-view,
-.journal-row-next span {
+.journal-row-next span,
+.journal-day-view {
   &.is-up,
   &.is-bull {
     color: var(--color-up);
@@ -119,6 +121,88 @@
   }
   &.is-bear {
     background: var(--color-down);
+  }
+}
+
+/* ── 右欄：所選交易日的日誌（唯讀） ───────────── */
+.journal-day {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &-date {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &-view {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+
+    &.is-muted {
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+  }
+
+  &-summary {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.55;
+    word-break: break-word;
+  }
+
+  &-next {
+    font-size: 12px;
+    color: var(--text-secondary);
+
+    .is-up {
+      color: var(--color-up);
+    }
+
+    .is-down {
+      color: var(--color-down);
+    }
+  }
+
+  &-muted {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &-body {
+    max-height: 260px;
+    overflow-y: auto;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-color);
+    font-size: 13px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  &-empty {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
   }
 }
 
@@ -501,7 +585,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .journal-chart-card {
+  .Journal-col--chart {
     position: static;
     order: -1;
   }

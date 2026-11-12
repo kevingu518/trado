@@ -5,6 +5,7 @@ import MarketChart from '../components/MarketChart'
 import MarketStrip from '../components/MarketStrip'
 import JournalForm from '../components/JournalForm'
 import JournalList from '../components/JournalList'
+import JournalDayCard from '../components/JournalDayCard'
 import '../styles/index.scss'
 
 const Journal = () => {
@@ -77,8 +78,8 @@ const Journal = () => {
           </Card>
         </div>
 
-        {/* 右：大盤走勢（滾動時固定在視窗內） */}
-        <div className="Journal-col">
+        {/* 右：大盤走勢 + 所選日的日誌（整欄 sticky，往下看歷史時都看得到） */}
+        <div className="Journal-col Journal-col--chart">
           <Card className="journal-card journal-chart-card">
             <MarketStrip
               date={activeDate}
@@ -90,10 +91,18 @@ const Journal = () => {
               rows={kline}
               entriesByDate={entriesByDate}
               nextChangePctByDate={nextChangePctByDate}
-              onSelectDate={(date) => listRef.current?.focusDate(date)}
-              height={380}
+              onSelectDate={setActiveDate}
+              height={420}
             />
           </Card>
+
+          <JournalDayCard
+            date={activeDate}
+            entry={entriesByDate.get(activeDate) || null}
+            isToday={activeDate === todayIso}
+            isTradingDay={activeContext ? activeContext.isTradingDay : null}
+            onEdit={handleEdit}
+          />
         </div>
       </div>
     </div>
