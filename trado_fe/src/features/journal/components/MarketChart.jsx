@@ -4,16 +4,17 @@ import { createChart } from 'lightweight-charts'
 /**
  * 大盤 K 線 + 成交量 + 多空帶
  *
- * 多空帶不是圖表套件的一條 series，而是畫在圖表下方的獨立 canvas：
+ * 多空不是圖表套件的一條 series，而是一層疊在 K 線圖上的透明 canvas：
  * 每次可見區間變動時，用 timeScale().timeToCoordinate() 把每個交易日
  * 換成 x 座標再重畫，因此滾動、縮放都會跟著對齊。
+ * 有寫日誌的交易日會顯示「整欄淡色底 + 圖表底部實心色條」，一眼看出哪幾天有記錄。
  *
  * 顏色沿用全站語意（--color-up / --color-down），不另外定義一套紅綠。
  */
 
-const RIBBON_HEIGHT = 12
-const BAND_TOP = 3
+const BAND_HEIGHT = 8
 const TOOLTIP_WIDTH = 240
+const TINT_ALPHA = 0.1
 
 const VIEW_LABEL = { bull: '多', neutral: '中性', bear: '空' }
 
@@ -61,18 +62,25 @@ const MarketChart = ({
     const canvas = ribbonRef.current
     if (!chart || !canvas) return
 
-    const width = canvas.clientWidth
+    const ts = chart.timeScale()
+    const width = Math.round(ts.width())
+    const axisHeight = typeof ts.height === 'function' ? ts.height() : 0
+    const paneHeight = Math.round((chartElRef.current?.clientHeight || 0) - axisHeight)
+    if (width <= 0 || paneHeight <= 0) return
+
     const dpr = window.devicePixelRatio || 1
-    canvas.width = Math.max(1, Math.round(width * dpr))
-    canvas.height = Math.round(RIBBON_HEIGHT * dpr)
+    canvas.style.width = `${width}px`
+    canvas.style.height = `${paneHeight}px`
+    canvas.width = Math.round(width * dpr)
+    canvas.height = Math.round(paneHeight * dpr)
 
     const ctx = canvas.getContext('2d')
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.clearRect(0, 0, width, RIBBON_HEIGHT)
+    ctx.clearRect(0, 0, width, paneHeight)
 
-    const ts = chart.timeScale()
     const barSpacing = ts.options().barSpacing || 6
-    const cellW = Math.max(2, Math.min(barSpacing * 0.78, 18))
+    const cellW = Math.max(2, Math.min(barSpacing * 0.8, 18))
+    const bandY = paneHeight - BAND_HEIGHT - 1
 
     const up = cssVar('--color-up', '#38a169')
     const down = cssVar('--color-down', '#cf1322')
@@ -81,22 +89,29 @@ const MarketChart = ({
     let prevView = null
     for (const row of rowsRef.current || []) {
       const entry = entriesRef.current?.get(row.date)
-      if (!entry) continue // 未寫＝空白，不畫格；也不重置 prevView（要跟前一篇「有寫的」比）
+      if (!entry) continue // 未寫＝空白，不畫；也不重置 prevView（要跟前一篇「有寫的」比）
 
       const x = ts.timeToCoordinate(row.date)
       if (x == null) continue
 
       const color = entry.view === 'bull' ? up : entry.view === 'bear' ? down : neutral
-      ctx.fillStyle = color
-      ctx.globalAlpha = 0.85
-      ctx.fillRect(x - cellW / 2, BAND_TOP, cellW, RIBBON_HEIGHT - BAND_TOP)
-      ctx.globalAlpha = 1
 
-      // 方向跟前一篇不同 → 左緣一條深色小豎線
+      // 整欄淡色底：一眼看出這天有日誌，又不會蓋住 K 棒
+      ctx.globalAlpha = TINT_ALPHA
+      ctx.fillStyle = color
+      ctx.fillRect(x - cellW / 2, 0, cellW, bandY - 2)
+
+      // 圖表底部實心色條：滾動縮放時最明顯的定位點
+      ctx.globalAlpha = 0.9
+      ctx.fillRect(x - cellW / 2, bandY, cellW, BAND_HEIGHT)
+
+      // 方向跟前一篇不同 → 一條淡色直線標出轉折
       if (prevView && prevView !== entry.view) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
-        ctx.fillRect(x - cellW / 2 - 0.5, 0, 1.5, RIBBON_HEIGHT)
+        ctx.globalAlpha = 0.25
+        ctx.fillStyle = '#000'
+        ctx.fillRect(x - cellW / 2 - 0.75, 0, 1.5, bandY + BAND_HEIGHT)
       }
+      ctx.globalAlpha = 1
       prevView = entry.view
     }
   }, [])
@@ -258,15 +273,15 @@ const MarketChart = ({
     : 0
 
   return (
-    <div className="journal-chart" ref={wrapRef} onMouseLeave={() => setHover(null)}>
+    <div
+      className="journal-chart"
+      ref={wrapRef}
+      onMouseMove={handleMove}
+      onMouseLeave={() => setHover(null)}
+      onClick={handleClick}
+    >
       <div className="journal-chart-canvas" ref={chartElRef} />
-      <canvas
-        ref={ribbonRef}
-        className="journal-chart-ribbon"
-        onMouseMove={handleMove}
-        onClick={handleClick}
-        aria-label="多空帶"
-      />
+      <canvas ref={ribbonRef} className="journal-chart-ribbon" aria-hidden="true" />
 
       {rows.length === 0 && (
         <div className="journal-chart-empty">目前沒有大盤資料</div>
@@ -275,7 +290,7 @@ const MarketChart = ({
       {hover && (
         <div
           className="journal-chart-tip"
-          style={{ left: tipLeft, bottom: RIBBON_HEIGHT + 10 }}
+          style={{ left: tipLeft, bottom: BAND_HEIGHT + 18 }}
         >
           <div className="journal-chart-tip-date">{fmtDate(hover.row.date)}</div>
           <div className="journal-chart-tip-ohlc">
