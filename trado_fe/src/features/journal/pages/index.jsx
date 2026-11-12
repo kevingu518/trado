@@ -44,49 +44,61 @@ const Journal = () => {
         <span className="text-hint">每天 30 秒留下多空與理由，回頭看自己的判斷</span>
       </div>
 
-      <Card className="journal-card" styles={{ body: { padding: '10px 12px 6px' } }}>
-        <MarketStrip
-          date={activeDate}
-          isToday={activeDate === todayIso}
-          context={activeContext}
-          loading={contextLoadingOrStale}
-        />
-        <MarketChart
-          rows={kline}
-          entriesByDate={entriesByDate}
-          nextChangePctByDate={nextChangePctByDate}
-          onSelectDate={(date) => listRef.current?.focusDate(date)}
-        />
-      </Card>
+      <div className="Journal-main">
+        {/* 左：寫日誌 + 歷史 */}
+        <div className="Journal-col">
+          <div ref={formRef}>
+            <Card className="journal-card">
+              <JournalForm
+                date={activeDate}
+                todayIso={todayIso}
+                context={activeContext}
+                loading={contextLoadingOrStale}
+                saving={saving}
+                onSave={saveEntry}
+                onBackToToday={() => setActiveDate(todayIso)}
+              />
+            </Card>
+          </div>
 
-      <div ref={formRef}>
-        <Card className="journal-card">
-          <JournalForm
-            date={activeDate}
-            todayIso={todayIso}
-            context={activeContext}
-            loading={contextLoadingOrStale}
-            saving={saving}
-            onSave={saveEntry}
-            onBackToToday={() => setActiveDate(todayIso)}
-          />
-        </Card>
+          <Card className="journal-card">
+            <JournalList
+              ref={listRef}
+              tradingDays={tradingDays}
+              entriesByDate={entriesByDate}
+              nextChangePctByDate={nextChangePctByDate}
+              todayIso={todayIso}
+              todayIsTradingDay={!!todayIsTradingDay}
+              activeDate={activeDate}
+              onEdit={handleEdit}
+              onDelete={deleteEntry}
+              onWriteToday={() => handleEdit(todayIso)}
+            />
+          </Card>
+        </div>
+
+        {/* 右：大盤走勢（滾動時固定在視窗內） */}
+        <div className="Journal-col">
+          <Card
+            className="journal-card journal-chart-card"
+            styles={{ body: { padding: '10px 12px 6px' } }}
+          >
+            <MarketStrip
+              date={activeDate}
+              isToday={activeDate === todayIso}
+              context={activeContext}
+              loading={contextLoadingOrStale}
+            />
+            <MarketChart
+              rows={kline}
+              entriesByDate={entriesByDate}
+              nextChangePctByDate={nextChangePctByDate}
+              onSelectDate={(date) => listRef.current?.focusDate(date)}
+              height={380}
+            />
+          </Card>
+        </div>
       </div>
-
-      <Card className="journal-card">
-        <JournalList
-          ref={listRef}
-          tradingDays={tradingDays}
-          entriesByDate={entriesByDate}
-          nextChangePctByDate={nextChangePctByDate}
-          todayIso={todayIso}
-          todayIsTradingDay={!!todayIsTradingDay}
-          activeDate={activeDate}
-          onEdit={handleEdit}
-          onDelete={deleteEntry}
-          onWriteToday={() => handleEdit(todayIso)}
-        />
-      </Card>
     </div>
   )
 }

@@ -18,6 +18,38 @@ const TINT_ALPHA = 0.1
 
 const VIEW_LABEL = { bull: '多', neutral: '中性', bear: '空' }
 
+/** 均線選項；顏色刻意跟多空紅綠分開，避免看圖時混淆 */
+const MA_DEFS = [
+  { key: '5', label: 'MA5', color: '#f59e0b' },
+  { key: '10', label: 'MA10', color: '#3b82f6' },
+  { key: '20', label: 'MA20', color: '#a855f7' },
+  { key: '60', label: 'MA60', color: '#14b8a6' },
+]
+const MA_STORAGE_KEY = 'trado.journal.ma'
+
+/** 簡易移動平均：不足天數的日子不畫點 */
+const computeMA = (rows, period) => {
+  const out = []
+  let sum = 0
+  for (let i = 0; i < rows.length; i += 1) {
+    sum += rows[i].close
+    if (i >= period) sum -= rows[i - period].close
+    if (i >= period - 1) out.push({ time: rows[i].date, value: +(sum / period).toFixed(2) })
+  }
+  return out
+}
+
+const readActiveMA = () => {
+  try {
+    const raw = localStorage.getItem(MA_STORAGE_KEY)
+    const arr = raw ? JSON.parse(raw) : null
+    if (Array.isArray(arr)) return arr.filter((k) => MA_DEFS.some((d) => d.key === k))
+  } catch {
+    /* localStorage 不可用時用預設值 */
+  }
+  return ['20']
+}
+
 const cssVar = (name, fallback) => {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
   return v || fallback
@@ -49,7 +81,9 @@ const MarketChart = ({
   const nextRef = useRef(nextChangePctByDate)
   const selectRef = useRef(onSelectDate)
   const fittedRef = useRef(false)
+  const maSeriesRef = useRef(new Map())
   const [hover, setHover] = useState(null)
+  const [activeMA, setActiveMA] = useState(readActiveMA)
 
   rowsRef.current = rows
   entriesRef.current = entriesByDate
@@ -125,6 +159,8 @@ const MarketChart = ({
     const up = cssVar('--color-up', '#38a169')
     const down = cssVar('--color-down', '#cf1322')
 
+    const maSeries = maSeriesRef.current
+
     const chart = createChart(chartElRef.current, {
       width: chartElRef.current.clientWidth,
       height,
@@ -181,6 +217,7 @@ const MarketChart = ({
     return () => {
       observer.disconnect()
       chart.remove()
+      maSeries.clear()
       chartRef.current = null
       candleRef.current = null
       volumeRef.current = null
@@ -217,6 +254,50 @@ const MarketChart = ({
       drawRef.current()
     }
   }, [rows])
+
+  // 均線：依開關建立／移除 series，資料換了就地更新
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const map = maSeriesRef.current
+
+    for (const [key, series] of map) {
+      if (!activeMA.includes(key)) {
+        chart.removeSeries(series)
+        map.delete(key)
+      }
+    }
+
+    for (const def of MA_DEFS) {
+      if (!activeMA.includes(def.key)) continue
+      let series = map.get(def.key)
+      if (!series) {
+        series = chart.addLineSeries({
+          color: def.color,
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        })
+        map.set(def.key, series)
+      }
+      series.setData(computeMA(rows, Number(def.key)))
+    }
+
+    drawRef.current()
+    try {
+      localStorage.setItem(MA_STORAGE_KEY, JSON.stringify(activeMA))
+    } catch {
+      /* 存不進去就算了，不影響看圖 */
+    }
+  }, [activeMA, rows])
+
+  const toggleMA = (key) => {
+    setActiveMA((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      return next.sort((a, b) => Number(a) - Number(b))
+    })
+  }
 
   // 日誌增刪改 → 多空帶跟著換色
   useEffect(() => {
@@ -273,44 +354,62 @@ const MarketChart = ({
     : 0
 
   return (
-    <div
-      className="journal-chart"
-      ref={wrapRef}
-      onMouseMove={handleMove}
-      onMouseLeave={() => setHover(null)}
-      onClick={handleClick}
-    >
-      <div className="journal-chart-canvas" ref={chartElRef} />
-      <canvas ref={ribbonRef} className="journal-chart-ribbon" aria-hidden="true" />
+    <div className="journal-chart-wrap">
+      <div className="journal-chart-toolbar">
+        <span className="journal-chart-toolbar-label">均線</span>
+        {MA_DEFS.map((def) => (
+          <button
+            key={def.key}
+            type="button"
+            className={`journal-ma-btn${activeMA.includes(def.key) ? ' is-on' : ''}`}
+            style={{ '--ma-color': def.color }}
+            onClick={() => toggleMA(def.key)}
+          >
+            <span className="journal-ma-dot" />
+            {def.label}
+          </button>
+        ))}
+      </div>
 
-      {rows.length === 0 && (
-        <div className="journal-chart-empty">目前沒有大盤資料</div>
-      )}
-
-      {hover && (
-        <div
-          className="journal-chart-tip"
-          style={{ left: tipLeft, bottom: BAND_HEIGHT + 18 }}
+      <div
+        className="journal-chart"
+        ref={wrapRef}
+          onMouseMove={handleMove}
+          onMouseLeave={() => setHover(null)}
+          onClick={handleClick}
         >
-          <div className="journal-chart-tip-date">{fmtDate(hover.row.date)}</div>
-          <div className="journal-chart-tip-ohlc">
-            開 {hover.row.open} / 高 {hover.row.high} / 低 {hover.row.low} / 收 {hover.row.close}
+        <div className="journal-chart-canvas" ref={chartElRef} />
+        <canvas ref={ribbonRef} className="journal-chart-ribbon" aria-hidden="true" />
+
+        {rows.length === 0 && (
+          <div className="journal-chart-empty">目前沒有大盤資料</div>
+        )}
+
+        {hover && (
+          <div
+            className="journal-chart-tip"
+            style={{ left: tipLeft, bottom: BAND_HEIGHT + 18 }}
+          >
+            <div className="journal-chart-tip-date">{fmtDate(hover.row.date)}</div>
+            <div className="journal-chart-tip-ohlc">
+              開 {hover.row.open} / 高 {hover.row.high} / 低 {hover.row.low} / 收 {hover.row.close}
+            </div>
+            {hover.entry ? (
+              <>
+                <div className="journal-chart-tip-view">
+                  <span className={`journal-view-dot is-${hover.entry.view}`} />
+                  {VIEW_LABEL[hover.entry.view]}．{hover.entry.summary}
+                </div>
+                <div className="journal-chart-tip-next">
+                  隔日 {fmtPct(nextRef.current?.get(hover.row.date))}
+                </div>
+              </>
+            ) : (
+              <div className="journal-chart-tip-view journal-chart-tip-muted">這天沒有日誌</div>
+            )}
           </div>
-          {hover.entry ? (
-            <>
-              <div className="journal-chart-tip-view">
-                <span className={`journal-view-dot is-${hover.entry.view}`} />
-                {VIEW_LABEL[hover.entry.view]}．{hover.entry.summary}
-              </div>
-              <div className="journal-chart-tip-next">
-                隔日 {fmtPct(nextRef.current?.get(hover.row.date))}
-              </div>
-            </>
-          ) : (
-            <div className="journal-chart-tip-view journal-chart-tip-muted">這天沒有日誌</div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

@@ -2,6 +2,8 @@
 
 .Journal {
   padding: 8px 12px;
+  max-width: 1440px; /* 不滿版：左右兩欄收在舒服的閱讀寬度 */
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -13,6 +15,27 @@
     flex-wrap: wrap;
     padding: 4px 4px 0;
   }
+
+  /* 左邊日誌、右邊走勢圖 */
+  &-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  &-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+}
+
+/* 圖表跟著視窗走，往下看歷史時還看得到大盤 */
+.journal-chart-card {
+  position: sticky;
+  top: 8px;
 }
 
 .journal-card {
@@ -97,6 +120,63 @@
 }
 
 /* ── 圖表 ─────────────────────────────────── */
+.journal-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.journal-chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 2px;
+
+  &-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+}
+
+.journal-ma-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: var(--ma-color);
+    color: var(--ma-color);
+  }
+
+  &.is-on {
+    border-color: var(--ma-color);
+    background: var(--ma-color);
+    color: #fff;
+
+    .journal-ma-dot {
+      background: #fff;
+    }
+  }
+}
+
+.journal-ma-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ma-color);
+}
+
 .journal-chart {
   position: relative;
 
@@ -409,6 +489,18 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s;
+  }
+}
+
+/* ── 平板：圖表在上、日誌在下（寬度不夠並排） ── */
+@media (max-width: 1180px) {
+  .Journal-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .journal-chart-card {
+    position: static;
+    order: -1;
   }
 }
 
