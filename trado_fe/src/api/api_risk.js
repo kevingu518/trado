@@ -6,6 +6,9 @@ import request from './request';
  */
 export const getRiskAlertsApi = () => request.get('/risk/alerts');
 
+// accountId 目前不會有值，是留給多帳號（TD-113）的參數
+export const getRiskExposureApi = (params = {}) => request.get('/risk/exposure', { params });
+
 export const ackRiskAlertApi = ({ tradeId, alertType, priceDate }) =>
   request.post('/risk/alerts/ack', { tradeId, alertType, priceDate });
 

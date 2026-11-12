@@ -46,7 +46,7 @@ const todayTaipeiIso = () =>
 const round2 = (v) => (v == null || !Number.isFinite(v) ? null : Number(v.toFixed(2)));
 
 /** 最近一筆有填停損的進場單（多單看 buy、空單看 sell）；調整單已按 timestamp 升冪 */
-const pickStopAdjustment = (adjustments, isLong) => {
+export const pickStopAdjustment = (adjustments, isLong) => {
   const entryAction = isLong ? 'buy' : 'sell';
   const withStop = (adjustments || []).filter(
     (a) => a.action === entryAction && a.stopLoss != null

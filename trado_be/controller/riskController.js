@@ -1,8 +1,17 @@
 import RiskAlertService from '../services/RiskAlertService.js';
+import RiskExposureService from '../services/RiskExposureService.js';
 
 const riskController = {
   async getAlerts(req, res) {
     const data = await RiskAlertService.getAlerts(req.user.id);
+    res.json({ success: true, data });
+  },
+
+  async getExposure(req, res) {
+    // accountId 先收下，多帳號（TD-113）接上後才會有值
+    const data = await RiskExposureService.getExposure(req.user.id, {
+      accountId: req.query.accountId || null,
+    });
     res.json({ success: true, data });
   },
 

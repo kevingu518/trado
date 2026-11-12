@@ -8,6 +8,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get('/alerts', asyncHandler(riskController.getAlerts));
+router.get('/exposure', asyncHandler(riskController.getExposure));
 router.post('/alerts/ack', asyncHandler(riskController.ackAlert));
 router.delete('/alerts/ack', asyncHandler(riskController.unackAlert));
 router.post('/alerts/ack-all', asyncHandler(riskController.ackAll));

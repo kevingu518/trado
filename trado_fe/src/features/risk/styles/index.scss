@@ -52,66 +52,249 @@
   }
 }
 
-// ── 摘要數字：單一白色長條，對齊交易紀錄底部的統計列 ──
-.risk-kpi-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
+// ── 摘要數據：一個白色區塊，裡面是 3×2 的數字 ──
+// 數字本身沒有框線與底色，靠留白分格；層次只有「面板 → 文字」兩層
+.risk-summary {
   background: #fff;
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  padding: 10px 0;
+  overflow: hidden;
 }
 
-.risk-kpi {
-  flex: 1 1 120px;
-  min-width: 0;
+// 兩塊概況的表頭要一樣高（右邊多一顆重新整理按鈕），兩張表才會從同一條線開始
+.risk-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 40px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+// 一行一項：標籤、說明、數字排在同一條線上，列與列用細線分隔
+.risk-summary-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 2px 16px;
-  border-left: 1px solid var(--border-color);
+  padding: 2px 16px 6px;
+}
 
-  &:first-child {
-    border-left: none;
+// 曝險總覽：左邊六列數字、右邊資金運用甜甜圈
+// 圓餅只吃右緣原本就空著的寬度，面板高度仍由左邊的今日概況決定
+.risk-summary-body {
+  display: flex;
+  align-items: stretch;
+
+  > .risk-summary-list {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+.risk-summary-chart {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  // 左右留白比原本多一點，圓餅不要貼著數字與面板邊緣
+  padding: 8px 18px 8px 14px;
+  min-width: 0;
+}
+
+// 圓餅本體＋中心文字（中心文字蓋在 canvas 上，但不吃滑鼠事件）
+.risk-donut {
+  position: relative;
+  width: 168px;
+  height: 168px;
+}
+
+.risk-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  pointer-events: none;
+
+  &-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &-value {
+    font-size: 17px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// 圖例：跟圓餅同寬，兩三個項目會自己折行
+.risk-donut-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: help;
+
+  i {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 4px;
+    border-radius: 50%;
+    vertical-align: 1px;
+  }
+}
+
+// 區塊標題右側：資料時間＋重新整理
+.risk-summary-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+// 單一列：標籤（前有小圓點）、一行說明、右邊數字；沒有邊框與底色
+.risk-kpi {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 0;
+  cursor: default;
+
+  & + & {
+    border-top: 1px solid #f2f2f2;
   }
 }
 
 .risk-kpi-label {
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  white-space: nowrap;
+
+  // 狀態圓點：正常狀態留位不畫，有問題才上色，標籤左緣才會對齊
+  &::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: transparent;
+  }
 }
 
 .risk-kpi-value {
-  font-size: 20px;
-  line-height: 1.25;
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 22px;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
 
-// ── 主區塊：今日警示（左）＋ 曝險總覽（右）並排 ──
-.risk-main-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
+// 要今天處理：紅字＋紅點
+.risk-kpi--danger {
+  .risk-kpi-label {
+    color: #a8071a;
+
+    &::before {
+      background: #cf1322;
+    }
+  }
+
+  .risk-kpi-value {
+    color: #cf1322;
+  }
 }
 
-.risk-main-left {
-  flex: 1;
+// 要注意：橘字＋橘點
+.risk-kpi--warning {
+  .risk-kpi-label {
+    color: #ad6800;
+
+    &::before {
+      background: #d48806;
+    }
+  }
+
+  .risk-kpi-value {
+    color: #d46b08;
+  }
+}
+
+// ── 左右分工：左＝今日概況＋今日警示，右＝曝險總覽＋部位曝險 ──
+// 用 grid 排 2×2：同一列的兩塊一定同高，第二列兩張表自然從同一條線開始
+.risk-dashboard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    'summary-l summary-r'
+    'panel-l   panel-r';
+  gap: 12px;
+  align-items: stretch;
+}
+
+.risk-dashboard > .risk-area-summary-l {
+  grid-area: summary-l;
+}
+
+.risk-dashboard > .risk-area-summary-r {
+  grid-area: summary-r;
+}
+
+.risk-dashboard > .risk-area-panel-l {
+  grid-area: panel-l;
+}
+
+.risk-dashboard > .risk-area-panel-r {
+  grid-area: panel-r;
+}
+
+// 曝險資料還沒來或載入失敗時只有一塊提示，讓它佔滿右邊兩列，不要留一個洞
+.risk-dashboard > .risk-area-placeholder {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+// ── 下排：集中度、族群偏離、建議三欄並排 ──
+.risk-triple {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.risk-triple > .risk-panel {
+  flex: 1 1 0;
   min-width: 0;
 }
 
-.risk-main-right {
-  flex: 0 0 320px;
-}
-
-// 窄螢幕疊起來，不要讓表格被擠到只能橫向捲動
-@media (max-width: 1200px) {
-  .risk-main-row {
+@media (max-width: 1100px) {
+  // 單欄時回到 DOM 順序：概況 → 警示 → 曝險總覽 → 部位曝險
+  .risk-dashboard {
+    display: flex;
     flex-direction: column;
   }
 
-  .risk-main-right {
-    flex: 1 1 auto;
-    width: 100%;
+  .risk-dashboard > .risk-area-placeholder {
+    grid-row: auto;
+  }
+
+  .risk-triple {
+    flex-direction: column;
   }
 }
 
@@ -137,25 +320,51 @@
 }
 
 // ── 表格細節 ──────────────────────────────────────
+// 表頭整排置中：右半邊數字欄是靠右對齊，表頭若跟著貼右會變成兩條參差的邊
+// rc-table 用 inline style 寫 text-align，這裡要靠 !important 才蓋得過
+.risk-panel .ant-table-thead > tr > th {
+  text-align: center !important;
+}
+
+// 表格內部自己捲：scrollbar 平常透明，滑到表格上才顯示
+// 尺寸一直留著（8px），出現時版面不會跳；顏色本身不支援 transition，是直接切換
+.risk-panel .ant-table-body,
+.risk-panel .ant-table-content {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: transparent;
+  }
+
+  &:hover {
+    scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.25);
+    }
+  }
+}
+
 .risk-symbol {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   flex-wrap: wrap;
 
   .ant-tag {
     margin-inline-end: 0;
-  }
-}
-
-.risk-price {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.25;
-
-  .text-hint {
-    font-size: 11px;
   }
 }
 
@@ -173,7 +382,12 @@
 }
 
 // 每列重複的操作按鈕：預設隱藏，hover 或鍵盤聚焦才淡入
+// 兩顆並排、不換行（表格 cell 只有 8px 內距，用 flex 才壓得住）
 .risk-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
   opacity: 0;
   transition: opacity 0.2s;
 
@@ -183,14 +397,215 @@
   }
 }
 
-.risk-coming-soon {
+.risk-kpi-sub {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ── 曝險總覽區塊（TD-115）─────────────────────────
+.risk-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.risk-section-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+
+  .ant-alert {
+    width: 100%;
+    text-align: left;
+  }
+}
+
+.risk-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.risk-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.risk-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.risk-stat-label {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.risk-stat-value {
+  font-size: 15px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+// 集中度／族群偏離的長條圖：標籤、長條、數值
+.risk-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.risk-bar-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  padding: 20px 16px;
+  min-width: 0;
+}
+
+.risk-bar-label {
+  // 族群名稱可能到 6~8 個字，左右各半後有空間，別太早截斷
+  flex: 0 0 88px;
+  font-size: 12px;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.risk-bar-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.risk-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+// 目標比重的位置指示線，長條是實際、這條線是目標
+.risk-bar-target {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text-secondary);
+}
+
+.risk-bar-value {
+  flex: 0 0 48px;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.risk-card-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 12px;
+
+  .ant-empty {
+    margin: 0;
+    width: 100%;
+    text-align: center;
+  }
+
+  .ant-empty-description {
+    font-size: 12px;
+  }
+}
+
+// 沒有有效停損的部位：表格下方一排代號，不計入總停損風險但要看得見
+.risk-nostop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.risk-nostop-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
   font-size: 13px;
+}
+
+.risk-nostop-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.risk-nostop-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: var(--text-secondary);
+  }
+
+  .ant-tag {
+    margin-inline-end: 0;
+    font-size: 11px;
+    line-height: 16px;
+  }
+}
+
+// 規則式建議：一條一句，左邊 icon 標記是警示還是提示
+.risk-suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.risk-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  border-top: 1px solid var(--border-color);
+
+  &:first-child {
+    border-top: none;
+  }
+}
+
+.risk-suggestion-icon {
+  flex-shrink: 0;
+  margin-top: 3px;
 }
 
 // ── 儀表板摘要條 ──────────────────────────────────
