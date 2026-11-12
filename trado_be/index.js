@@ -16,6 +16,7 @@ import aiAnalysisRoutes from './routes/aiAnalysisRoutes.js';
 import tradeImportRoutes from './routes/tradeImportRoutes.js';
 import analysisRoutes from './routes/analysisRoutes.js';
 import riskRoutes from './routes/riskRoutes.js';
+import journalRoutes from './routes/journalRoutes.js';
 import './jobs/snapshotJob.js';
 import './jobs/stockPriceJob.js';
 
@@ -73,6 +74,7 @@ app.use('/api/ai-analysis', aiAnalysisRoutes);
 app.use('/api/trade-import', tradeImportRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/risk', riskRoutes);
+app.use('/api/journal', journalRoutes);
 
 // 404 handler
 app.use((req, res) => {

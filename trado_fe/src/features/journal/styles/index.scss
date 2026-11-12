@@ -1,0 +1,449 @@
+@import '../../../styles/variables';
+
+.Journal {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 4px 4px 0;
+  }
+}
+
+.journal-card {
+  &.ant-card {
+    border-radius: 8px !important;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 4px var(--shadow);
+  }
+}
+
+/* ── 盤面摘要 ─────────────────────────────── */
+.journal-strip {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 0 4px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px dashed var(--border-color);
+
+  &-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  &-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  &-value {
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &-muted {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 6px 4px;
+  }
+}
+
+/* ── 多空語意色（沿用全站 --color-up / --color-down） ── */
+.journal-strip-value,
+.journal-view-label,
+.journal-row-view,
+.journal-row-next span {
+  &.is-up,
+  &.is-bull {
+    color: var(--color-up);
+  }
+  &.is-down,
+  &.is-bear {
+    color: var(--color-down);
+  }
+  &.is-neutral {
+    color: var(--text-secondary);
+  }
+}
+
+.journal-view-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--text-secondary);
+
+  &.is-bull {
+    background: var(--color-up);
+  }
+  &.is-bear {
+    background: var(--color-down);
+  }
+}
+
+/* ── 圖表 ─────────────────────────────────── */
+.journal-chart {
+  position: relative;
+
+  &-canvas {
+    width: 100%;
+  }
+
+  &-ribbon {
+    display: block;
+    width: 100%;
+    height: 12px;
+    margin-top: 2px;
+    cursor: pointer;
+  }
+
+  &-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+    pointer-events: none;
+  }
+
+  &-tip {
+    position: absolute;
+    width: 240px;
+    z-index: 20;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    box-shadow: 0 4px 12px var(--shadow);
+    font-size: 12px;
+    line-height: 1.5;
+    pointer-events: none;
+  }
+
+  &-tip-date {
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  &-tip-ohlc {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &-tip-view {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    margin-top: 4px;
+    word-break: break-word;
+  }
+
+  &-tip-next {
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  &-tip-muted {
+    color: var(--text-secondary);
+  }
+}
+
+/* ── 表單 ─────────────────────────────────── */
+.journal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &-date {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &-saved {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}
+
+.journal-prev {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 6px 10px;
+  border-radius: 6px;
+  line-height: 1.6;
+}
+
+.journal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.journal-field-error {
+  font-size: 12px;
+  color: var(--color-down);
+}
+
+.journal-body-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.journal-body-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.journal-template-btn {
+  display: none; /* 手機才顯示，桌面用 Tab */
+}
+
+.journal-body-input {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+
+  &:focus {
+    outline: none;
+    border-color: #4096ff;
+    box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
+  }
+}
+
+.journal-view-label {
+  display: inline-block;
+  font-weight: 600;
+  padding: 0 2px;
+}
+
+/* ── 歷史列表 ─────────────────────────────── */
+.journal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+
+    .ant-segmented {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+  }
+
+  &-scroll {
+    max-height: 430px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border-color);
+  }
+
+  &-empty {
+    padding: 24px 0;
+  }
+}
+
+.journal-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 104px auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--bg-secondary);
+
+    .journal-row-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  &.is-open {
+    background: var(--bg-secondary);
+  }
+
+  &.is-active {
+    box-shadow: inset 3px 0 0 #1677ff;
+  }
+
+  &-date {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &-today {
+    font-size: 10px;
+    color: #1677ff;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    padding: 0 3px;
+    line-height: 1.4;
+  }
+
+  &-main {
+    min-width: 0;
+  }
+
+  &-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  &-view {
+    flex: none;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  &-summary {
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &-muted {
+    color: var(--text-secondary);
+  }
+
+  &-backfill {
+    flex: none;
+    font-size: 10px;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    padding: 0 3px;
+    line-height: 1.4;
+  }
+
+  &-body {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    line-height: 1.7;
+    word-break: break-word;
+  }
+
+  &-next {
+    text-align: right;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &-next-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-right: 4px;
+  }
+
+  &-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+}
+
+/* ── 手機 ─────────────────────────────────── */
+@media (max-width: 768px) {
+  .Journal {
+    padding: 8px;
+  }
+
+  .journal-strip {
+    gap: 12px 16px;
+
+    &-value {
+      font-size: 14px;
+    }
+  }
+
+  .journal-template-btn {
+    display: inline-flex;
+  }
+
+  .journal-body-hint {
+    display: none;
+  }
+
+  .journal-row {
+    grid-template-columns: 74px minmax(0, 1fr) auto;
+    gap: 8px;
+
+    &-next {
+      display: none; /* 375px 放不下第四欄，隔日漲跌改看 tooltip／未來再補 */
+    }
+
+    &-actions {
+      opacity: 1; /* 觸控沒有 hover，操作要一直看得到 */
+      pointer-events: auto;
+    }
+  }
+}

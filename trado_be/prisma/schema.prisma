@@ -69,6 +69,7 @@ model User {
   importBatches       ImportBatch[]
   importMappings      ImportMapping[]
   riskAlertAcks       RiskAlertAck[]
+  marketJournals      MarketJournal[]
 
   @@index([googleId])
   @@index([email])
@@ -312,13 +313,31 @@ model StockPrice {
   high      Decimal  @db.Decimal(18, 2)
   low       Decimal  @db.Decimal(18, 2)
   close     Decimal  @db.Decimal(18, 2)
-  volume    BigInt   @default(0)              // 成交股數
+  volume    BigInt   @default(0)              // 成交股數（指數為市場總成交股數）
+  turnover  BigInt?                            // 成交金額（僅 TAIEX 等指數有值；個股 null）
   source    String   @db.VarChar(10)          // "TWSE" | "TPEX"
   createdAt DateTime @default(now()) @db.Timestamp(6)
   updatedAt DateTime @updatedAt @db.Timestamp(6)
 
   @@id([symbol, date])
   @@index([symbol, date])
+}
+
+// 盤後日誌 — 每位使用者每個交易日最多一筆
+// 只記「當下多空」＋一句話，刻意不存分數或命中率；隔日漲跌在讀取時即時算
+model MarketJournal {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  userId     String   @db.VarChar(36)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tradeDate  DateTime @db.Date
+  view       String   @db.VarChar(10)         // "bull" | "neutral" | "bear"
+  summary    String   @db.VarChar(100)        // 一句話（UI 限 40 字）
+  body       String?  @db.Text
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime @updatedAt @db.Timestamp(6)
+
+  @@unique([userId, tradeDate])
+  @@index([userId, tradeDate])
 }
 
 // 除權除息事件 — 用來把原始收盤價還原成「含息報酬」序列

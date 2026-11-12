@@ -17,6 +17,7 @@ import StockCategories from './features/stockCategories/pages';
 import Dashboard from './features/dashboard/pages';
 import Analysis from './features/analysis/pages';
 import RiskCenter from './features/risk/pages';
+import Journal from './features/journal/pages';
 import Settings from './features/account/pages/Settings';
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -51,6 +52,7 @@ function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="analysis" element={<Analysis />} />
               <Route path="risk" element={<RiskCenter />} />
+              <Route path="journal" element={<Journal />} />
               <Route path="trades" element={<Trades />} />
               <Route path="strategy" element={<Strategies />} />
               <Route path="stock-categories" element={<StockCategories />} />

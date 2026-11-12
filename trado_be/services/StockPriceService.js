@@ -67,6 +67,17 @@ const ensureRangeCached = async (symbol, startIso, endIso) => {
     })
   );
 
+  // 大盤的量能欄位是 TD-117 才開始存的：舊資料 turnover 為 null，
+  // 把那些月份視為未快取重抓一次，補上成交股數／成交金額（只影響 TAIEX，成本很低）
+  if (INDEX_SYMBOLS.has(symbol)) {
+    for (const r of existing) {
+      if (r.turnover != null) continue;
+      const y = r.date.getUTCFullYear();
+      const m = String(r.date.getUTCMonth() + 1).padStart(2, '0');
+      cachedMonths.delete(`${y}${m}`);
+    }
+  }
+
   // 當月資料持續變動（cron 可能漏抓當日，例如 TPEX publish 較晚），永遠視為「未 cache」
   // 強制重抓，讓使用者一打開圖就能補上最新交易日
   const now = new Date();
@@ -109,10 +120,23 @@ const ensureRangeCached = async (symbol, startIso, endIso) => {
           low: r.low,
           close: r.close,
           volume: BigInt(r.volume || 0),
+          turnover: r.turnover == null ? null : BigInt(r.turnover),
           source: result.source,
         }));
-        // upsert by (symbol, date) — 用 createMany + skipDuplicates 速度比逐筆 upsert 快
-        await prisma.stockPrice.createMany({ data, skipDuplicates: true });
+        if (INDEX_SYMBOLS.has(symbol)) {
+          // 指數每個月只有 ~20 筆，逐筆 upsert 才能在既有資料上補 turnover
+          for (const row of data) {
+            const { symbol: s, date, ...rest } = row;
+            await prisma.stockPrice.upsert({
+              where: { symbol_date: { symbol: s, date } },
+              create: row,
+              update: rest,
+            });
+          }
+        } else {
+          // upsert by (symbol, date) — 用 createMany + skipDuplicates 速度比逐筆 upsert 快
+          await prisma.stockPrice.createMany({ data, skipDuplicates: true });
+        }
       }
     } catch (err) {
       console.warn(`[StockPriceService] fetch ${symbol} ${month} failed:`, err.message);
@@ -140,6 +164,7 @@ const serialize = (rows) =>
     low: Number(r.low),
     close: Number(r.close),
     volume: typeof r.volume === 'bigint' ? Number(r.volume) : r.volume,
+    turnover: r.turnover == null ? null : Number(r.turnover),
     source: r.source,
   }));
 
@@ -206,19 +231,29 @@ class StockPriceService {
       try {
         const result = await fetchMonthFromSource(symbol, monthYyyymmdd);
         if (result.source && result.rows.length > 0) {
-          await prisma.stockPrice.createMany({
-            data: result.rows.map((r) => ({
-              symbol,
-              date: new Date(r.date),
-              open: r.open,
-              high: r.high,
-              low: r.low,
-              close: r.close,
-              volume: BigInt(r.volume || 0),
-              source: result.source,
-            })),
-            skipDuplicates: true,
-          });
+          const data = result.rows.map((r) => ({
+            symbol,
+            date: new Date(r.date),
+            open: r.open,
+            high: r.high,
+            low: r.low,
+            close: r.close,
+            volume: BigInt(r.volume || 0),
+            turnover: r.turnover == null ? null : BigInt(r.turnover),
+            source: result.source,
+          }));
+          if (INDEX_SYMBOLS.has(symbol)) {
+            for (const row of data) {
+              const { symbol: s, date, ...rest } = row;
+              await prisma.stockPrice.upsert({
+                where: { symbol_date: { symbol: s, date } },
+                create: row,
+                update: rest,
+              });
+            }
+          } else {
+            await prisma.stockPrice.createMany({ data, skipDuplicates: true });
+          }
           ok++;
         } else {
           fail++;
